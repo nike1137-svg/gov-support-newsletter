@@ -10,6 +10,7 @@
 | 📄 보고서 | [REPORT.md](REPORT.md) — 분야·독자 / 소스 채택표 / 선별 로직 / 구조도 / 실행 기록 / 회고 |
 | ▶️ 최종 발행 실행 | [GitHub Actions run 34934828691](https://github.com/nike1137-svg/gov-support-newsletter/actions/runs/34934828691) — 수집부터 발행까지 성공 · 텔레그램 수신 확인 |
 | ✅ 검수 증명 | [store/verify_proof.json](store/verify_proof.json) — 틀리게 바꾼 요약 4종 모두 불합격 · 8/8 |
+| 🤝 AI 협업 기록 | [docs/ai-collab.md](docs/ai-collab.md) — 누가 무엇을 정했고, 어떤 요청을 했고, AI 가 어디서 틀렸나 |
 
 ## 받아 보는 메시지
 
@@ -78,6 +79,7 @@ gov-support-newsletter/
 ├── docs/
 │   ├── source-criteria.md       소스 채택 기준 v1 → v2 와 측정 결과표
 │   ├── dev-log.md               2~5단계 구현 중 드러난 결함과 고친 방법
+│   ├── ai-collab.md             AI 협업 기록 — 역할 분담 · 실제 요청 · AI 가 틀린 곳
 │   └── telegram-1.png · telegram-2.png   수신 화면
 │
 └── tools/
