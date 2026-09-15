@@ -10,6 +10,7 @@
 | 📄 보고서 | [REPORT.md](REPORT.md) — 분야·독자 / 소스 채택표 / 선별 로직 / 구조도 / 실행 기록 / 회고 |
 | ▶️ 최종 발행 실행 | [GitHub Actions run 34934828691](https://github.com/nike1137-svg/gov-support-newsletter/actions/runs/34934828691) — 수집부터 발행까지 성공 · 텔레그램 수신 확인 |
 | ✅ 검수 증명 | [store/verify_proof.json](store/verify_proof.json) — 틀리게 바꾼 요약 4종 모두 불합격 · 8/8 |
+
 ## 받아 보는 메시지
 
 기사마다 **요약 · 할 일 · 확인할 조건 · 얻는 것**을 붙이고, 본문 확인과 자동 검수를 통과한 것만 보낸다.
