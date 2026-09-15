@@ -6,6 +6,7 @@
 2. draft_ok 가 2026-09-15 실제로 나왔던 불량 출력을 모두 되돌려 보내는가
    - ~했다 · ~함 문체 / 빈말 조건 / 얻는 것 칸에 대상 이야기 / 본문에 없는 인용 / 추측 판정 / 5인 이상인데 대상
 3. 본문도 요약도 없으면 LLM 을 부르지 않고 스킵하는가
+4. 본문에 '근로자 N인 이상'(N≥2)이 있으면 LLM 을 부르지 않고 스킵하는가 — 14:36 실제로 새어 나가 발행된 사례
 """
 
 import pathlib
@@ -66,6 +67,10 @@ cases = [
     ("추측 판정", mk(fit="대상아님", fit_quote="청년 창업자", fit_reason="규모가 큰 사업임을 유추할 수 있습니다."), b_ok, "추측"),
     ("5인 이상인데 대상", mk(fit_quote="상시근로자 5인 이상"), b_5, "5인 이상"),
     ("5인 이상 · 대상아님", mk(fit="대상아님", fit_quote="상시근로자 5인 이상", fit_reason="5인 이상 고용 조건입니다."), b_5, None),
+    # 14:36 실제 발행된 사례 — 불명으로 두고 지시문 문장을 근거 칸에 베낌
+    ("불명 · 지시문 베낀 근거", mk(fit="불명", fit_quote="본문에 지원대상 설명이 아예 없다", fit_reason="설명이 없습니다."), b_5, "불명인데"),
+    ("불명 · 빈 근거", mk(fit="불명", fit_quote="", fit_reason="지원대상 설명이 없습니다."), "사업개요: 전시회 참가기업 모집", None),
+    ("긴 헤드라인은 불합격 아님", mk(headline="[제주] 서귀포시 2026년 4분기 서귀포in정 입점업체 공개모집 공고 안내입니다"), b_ok, None),
 ]
 bad = []
 for name, d, b, want in cases:
@@ -84,6 +89,23 @@ out = graph.write({"item": {"id": "a001", "rank": 1, "label": "기준1", "source
 graph.extract_body, graph.ask = orig_extract, orig_ask
 d = out["drafted"][0]
 check("본문 없음 스킵", d["status"] == "skip" and not called, f"status={d['status']} · LLM 호출 {len(called)}회 · {d['skip_reason']}")
+
+# 4 — 인원 조건 코드 규칙: LLM 을 부르지 않고 스킵. 표기 흔들림(붙여 쓰기 · '수') 포함, 1인 이상은 거르지 않는다
+item = {"id": "a002", "rank": 1, "label": "기준1", "source": "x", "title": "t", "url": "u", "meta": {}, "why_pick": "w", "summary": ""}
+outs = {}
+for label, text in [("상시근로자 수 5인이상", "지원대상: 상시근로자 수 5인이상~1,000인미만(4대보험가입장) 기업" + " 내용" * 60),
+                    ("직원 10 인 이상", "사업개요: 직원 10 인 이상 제조기업 대상" + " 내용" * 60),
+                    ("1인 이상 (거르지 않음)", "지원대상: 고용 인원 1인 이상 사업자" + " 내용" * 60)]:
+    called.clear()
+    graph.extract_body = lambda it, t=text: (t, "본문")
+    graph.ask = lambda *a, **k: (called.append(1), (_ for _ in ()).throw(graph.LLMError("시험용")))[1]
+    r = graph.write({"item": item})["drafted"][0]
+    outs[label] = (r["status"], "코드 규칙" in r.get("skip_reason", ""), len(called))
+graph.extract_body, graph.ask = orig_extract, orig_ask
+check("인원 조건 코드 규칙",
+      outs["상시근로자 수 5인이상"][:2] == ("skip", True) and outs["상시근로자 수 5인이상"][2] == 0
+      and outs["직원 10 인 이상"][:2] == ("skip", True) and outs["1인 이상 (거르지 않음)"][1] is False,
+      str(outs))
 
 print(f"\n{sum(results)}/{len(results)} 통과")
 sys.exit(0 if all(results) else 1)

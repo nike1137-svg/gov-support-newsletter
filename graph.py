@@ -548,6 +548,9 @@ EMPTY_CHECK = re.compile(r"조건을\s*(꼼꼼히\s*)?확인|명확히 제시|�
 FIT_TALK = re.compile(r"대상에\s*해당|대상이\s*아니|지원\s*대상|대상으로\s*(판정|명시)|신청할\s*수\s*있")
 GUESS = re.compile(r"유추|추정|것으로\s*보|판단됨|가능성이\s*있")
 HEADCOUNT = re.compile(r"(\d+)\s*인\s*이상")
+# 인원 필수 조건 — 2026-09-15 14:36 '상시근로자 수 5인이상' 공고가 LLM 판정 '불명'으로 가드를 피해 실제 발행됐다.
+# 판정을 LLM 에 맡기지 않고 LLM 을 부르기 전에 코드가 거른다.
+STAFF_MIN = re.compile(r"(?:근로자|직원|종업원|고용\s*인원|인원)\s*(?:수)?\s*(\d+)\s*인\s*이상")
 
 
 def sentences(text):
@@ -569,8 +572,7 @@ def in_body(quote, body):
 def draft_ok(d: Draft, body=""):
     if not re.search(r"[가-힣]", d.summary + d.insight.action):
         return "요약과 인사이트를 한국어로 쓰세요"
-    if len(d.headline) > 40:
-        return f"헤드라인이 {len(d.headline)}자입니다. 30자 이내로 줄이세요"
+    # 헤드라인 길이는 불합격 사유로 쓰지 않는다 — 43자 헤드라인이 세 번 반복돼 사실 오류 없는 기사를 잃었다. 발행 때 자른다
     if not 2 <= len(d.evidence) <= 4:
         return f"evidence 를 2~4개 인용하세요 (지금 {len(d.evidence)}개)"
     plain = [x for f in (d.summary, d.insight.action, d.insight.gain) for x in sentences(f) if PLAIN_END.search(x)]
@@ -585,6 +587,9 @@ def draft_ok(d: Draft, body=""):
     # 판정 근거는 본문 인용이어야 한다 — 2026-09-15 '유추할 수 있어' 로 대상아님을 판정한 사례
     if d.fit != "불명" and not in_body(d.fit_quote, body):
         return f"fit_quote '{d.fit_quote[:30]}' 가 본문에 없습니다. 본문 구절을 그대로 옮기세요"
+    if d.fit == "불명" and d.fit_quote.strip() and not in_body(d.fit_quote, body):
+        return (f"불명인데 fit_quote 에 본문에 없는 문장 '{d.fit_quote[:30]}' 을 적었습니다. "
+                "본문에 지원대상이 적혀 있으면 그 구절로 대상/대상아님을 판정하고, 정말 없을 때만 빈 문자열로 두세요")
     if GUESS.search(d.fit_reason):
         return f"fit_reason 이 추측입니다: '{d.fit_reason[:40]}'. 본문에 적힌 조건만으로 판정하세요"
     m = [int(n) for n in HEADCOUNT.findall(body)]
@@ -620,6 +625,10 @@ def write(s: WriteIn) -> dict:
     if not body:
         return {"drafted": [{**base, "status": "skip", "skip_reason": "본문도 피드 요약도 없음"}],
                 "log": [f"   요약 스킵 {it['id']} · 본문 없음 · {it['title'][:30]}"]}
+    staff = [int(n) for n in STAFF_MIN.findall(body) if int(n) >= 2]
+    if staff:                                       # 1인 창조기업이 채울 수 없는 인원 조건 — LLM 을 부르지 않는다
+        return {"drafted": [{**base, "status": "skip", "skip_reason": f"코드 규칙: 본문에 인원 {min(staff)}인 이상 조건"}],
+                "log": [f"   요약 스킵 {it['id']} · 인원 {min(staff)}인 이상 · {it['title'][:30]}"]}
     try:
         d, usage = compose(it, body)
     except LLMError as ex:
@@ -834,8 +843,9 @@ def esc(s):
 def article_block(n, d):
     ins = d["insight"]
     period = d["meta"].get("신청기간", "")
+    head = d["headline"] if len(d["headline"]) <= 40 else d["headline"][:39] + "…"
     return "\n".join([
-        f"<b>{n}. <a href=\"{html.escape(d['url'])}\">{esc(d['headline'])}</a></b>",
+        f"<b>{n}. <a href=\"{html.escape(d['url'])}\">{esc(head)}</a></b>",
         esc(d["summary"]),
         f"👉 <b>할 일</b> {esc(ins['action'])}",
         f"✅ <b>확인</b> {esc(ins['check'])}",
