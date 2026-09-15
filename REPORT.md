@@ -233,14 +233,14 @@ LangGraph 가 코드에서 뽑은 뼈대 (`graph.build().get_graph().draw_mermai
 
 ```mermaid
 graph TD;
-	__start__([start]) --> collect;
+	__start__([시작]) --> collect;
 	collect --> prelim;
 	prelim --> final;
 	final -.-> write;
 	final -.-> publish;
 	write --> verify;
 	verify --> publish;
-	publish --> __end__([end]);
+	publish --> __end__([종료]);
 ```
 
 ---
