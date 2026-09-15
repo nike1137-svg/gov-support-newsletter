@@ -1,0 +1,64 @@
+name: 매일 아침 브리핑
+
+on:
+  schedule:
+    - cron: "30 22 * * *"        # UTC 22:30 = KST 매일 07:30
+  workflow_dispatch:              # 손으로도 돌릴 수 있게
+    inputs:
+      dry_run:
+        description: "발행하지 않고 로그만 남기기"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write                 # 실행 기록을 저장소에 되돌리려면 필요하다
+
+concurrency:
+  group: daily-brief              # 손으로 누른 실행과 예약 실행이 겹쳐 두 번 보내지 않게
+  cancel-in-progress: false
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20           # 멈춘 실행을 20분에서 끊는다
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 수집 → 선별 → 요약 → 검수 → 발행
+        # 예약 실행에는 inputs 가 비어 있어 --send 가 된다
+        run: python run.py ${{ inputs.dry_run && '--dry-run' || '--send' }}
+        env:                      # 비밀값은 여기로만 들어간다
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          BIZINFO_API_KEY: ${{ secrets.BIZINFO_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TZ: Asia/Seoul
+
+      - name: 실행 기록 커밋
+        if: ${{ !inputs.dry_run }}
+        env:
+          TZ: Asia/Seoul          # 커밋 메시지 날짜도 한국 시간으로 (이전 프로젝트는 UTC 라 하루 이르게 찍혔다)
+        run: |
+          git config user.name  "brief-bot"
+          git config user.email "brief-bot@users.noreply.github.com"
+          git add store/
+          git diff --cached --quiet && exit 0
+          git commit -m "run: $(date +%F_%H%M) KST"
+          git pull --rebase
+          git push
+
+      - name: 실행 기록 보관      # 실패한 회차의 기록이야말로 보고 싶은 것
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: run-${{ github.run_number }}
+          path: store/
+          retention-days: 30

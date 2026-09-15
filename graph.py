@@ -2,7 +2,7 @@
 
     수집 → 선별 → 요약 → 검수 → 발행
 
-지금 구현된 노드: 수집(collect) → 예선(prelim) → 본선(final) → 요약·인사이트(write, 기사마다 병렬) → 검수(verify)
+노드: 수집(collect) → 예선(prelim) → 본선(final) → 요약·인사이트(write, 기사마다 병렬) → 검수(verify) → 발행(publish)
 독자 · 기준 · 제외 조건은 audience.yaml, 소스 채택 근거는 docs/source-criteria.md
 """
 
@@ -49,6 +49,7 @@ class Brief(TypedDict):
     drafted: Annotated[list, operator.add]      # 요약·인사이트 — 워커들이 나눠 채운다
     reviewed: list                              # 검수 기록이 붙은 작성물 전체 (스킵 포함). 줄이는 키라 리듀서 없음
     verified: list                              # 검수를 통과해 발행할 것
+    messages: list                              # 실제로 보낸(또는 dry-run 에서 보낼) 텔레그램 메시지
     screened: Annotated[list, operator.add]     # 기사마다 붙은 라벨과 이유 — 선별 기준이 동작한 근거
     stats: Annotated[dict, merge]               # 단계별 수치 — store/metrics.jsonl 로 간다
     log: Annotated[list, operator.add]          # 사람이 읽는 실행 기록
@@ -597,8 +598,8 @@ class WriteIn(TypedDict):          # 워커가 받는 것은 기사 하나뿐
 
 
 def fan_write(s: Brief):
-    """본선 선택 건수만큼 워커를 펼친다. 고른 게 없으면 바로 끝낸다"""
-    return [Send("write", {"item": p}) for p in s["picked"]] or [END]
+    """본선 선택 건수만큼 워커를 펼친다. 고른 게 없으면 발행으로 바로 가서 '없음'을 알린다"""
+    return [Send("write", {"item": p}) for p in s["picked"]] or ["publish"]
 
 
 def compose(it, body, feedback=None):
@@ -820,6 +821,88 @@ def verify(s: Brief) -> dict:
     return {"verified": passed, "reviewed": out, "stats": stats, "log": lines}
 
 
+# ---------------------------------------------------------------- 발행
+# 텔레그램 봇. DRY_RUN 기본값은 1(보내지 않음) — 실수로 보내는 것보다 안 보내는 쪽이 덜 나쁘다.
+# 한 메시지 4096자 한도 — 기사를 버리지 않고 여러 메시지로 나눈다.
+TG_MAX = 3800
+
+
+def esc(s):
+    return html.escape(s or "", quote=False)
+
+
+def article_block(n, d):
+    ins = d["insight"]
+    period = d["meta"].get("신청기간", "")
+    return "\n".join([
+        f"<b>{n}. <a href=\"{html.escape(d['url'])}\">{esc(d['headline'])}</a></b>",
+        esc(d["summary"]),
+        f"👉 <b>할 일</b> {esc(ins['action'])}",
+        f"✅ <b>확인</b> {esc(ins['check'])}",
+        f"💰 <b>얻는 것</b> {esc(ins['gain'])}",
+        f"<code>{esc(d['source'])}" + (f" · 신청 {esc(period)}" if period else "") + "</code>",
+    ])
+
+
+def build_messages(today, items, below_min):
+    head = f"🗂 <b>{today} · 1인 창조기업 지원 브리핑</b>"
+    if not items:
+        return [head + "\n오늘은 검수를 통과한 공고가 없습니다. 파이프라인은 정상 실행됐습니다."]
+    lead = f"{len(items)}건 · 본문 확인과 자동 검수를 통과한 소식만 보냅니다."
+    if below_min:
+        lead += f"\n(오늘은 조건에 맞는 공고가 적어 {TARGET_MIN}건을 채우지 못했습니다)"
+    msgs, cur = [], head + "\n" + lead
+    for n, d in enumerate(items, 1):
+        block = article_block(n, d)
+        if len(cur) + 2 + len(block) > TG_MAX:
+            msgs.append(cur)
+            cur = block
+        else:
+            cur += "\n\n" + block
+    msgs.append(cur)
+    return msgs
+
+
+def send_telegram(text):
+    """(성공 여부, message_id 또는 오류). 429 는 retry_after 만큼 기다려 다시 보낸다"""
+    url = f"https://api.telegram.org/bot{os.environ['TELEGRAM_BOT_TOKEN']}/sendMessage"
+    body = {"chat_id": os.environ["TELEGRAM_CHAT_ID"], "text": text, "parse_mode": "HTML",
+            "disable_web_page_preview": True}
+    last = ""
+    for attempt in range(TRIES):
+        try:
+            r = requests.post(url, json=body, timeout=TIMEOUT)
+            data = r.json()
+            if data.get("ok"):
+                return True, data["result"]["message_id"]
+            last = f"{r.status_code} {data.get('description', '')[:100]}"
+            wait = data.get("parameters", {}).get("retry_after")
+            if r.status_code == 429 or r.status_code >= 500:
+                time.sleep(wait or 2 ** attempt)
+                continue
+            return False, last                      # 400·401·403 은 다시 보내도 같다
+        except (requests.RequestException, ValueError) as ex:
+            last = type(ex).__name__
+            time.sleep(2 ** attempt)
+    return False, last
+
+
+def publish(s: Brief) -> dict:
+    items = sorted(s["verified"], key=lambda d: d["rank"])
+    below = s["stats"].get("verify", {}).get("below_min", len(items) < TARGET_MIN)
+    msgs = build_messages(datetime.now(KST).strftime("%Y-%m-%d"), items, below and bool(items))
+    dry = os.environ.get("DRY_RUN", "1") != "0"
+    sent, failed = [], []
+    if not dry:
+        for m in msgs:
+            ok, info = send_telegram(m)
+            (sent if ok else failed).append(info)
+    stats = {"publish": {"dry_run": dry, "articles": len(items), "messages": len(msgs),
+                         "chars": [len(m) for m in msgs], "message_ids": sent, "failed": failed}}
+    where = "dry-run · 보내지 않음" if dry else f"텔레그램 {len(sent)}/{len(msgs)}개 전달" + (f" · 실패 {failed}" if failed else "")
+    return {"messages": msgs, "stats": stats, "log": [f"⊙ 발행  {len(items)}건 · 메시지 {len(msgs)}개 · {where}"]}
+
+
 # ---------------------------------------------------------------- 그래프
 def build():
     g = StateGraph(Brief)
@@ -828,15 +911,17 @@ def build():
     g.add_node("final", final)
     g.add_node("write", write)
     g.add_node("verify", verify)
+    g.add_node("publish", publish)
     g.add_edge(START, "collect")
     g.add_edge("collect", "prelim")
     g.add_edge("prelim", "final")
-    g.add_conditional_edges("final", fan_write, ["write", END])
+    g.add_conditional_edges("final", fan_write, ["write", "publish"])   # 고른 게 없어도 "없음" 메시지는 보낸다
     g.add_edge("write", "verify")                  # 워커가 모두 끝나면 한 번 모인다
-    g.add_edge("verify", END)
+    g.add_edge("verify", "publish")
+    g.add_edge("publish", END)
     return g.compile()
 
 
 def run(hours: int = HOURS) -> dict:
     return build().invoke({"hours": hours, "collected": [], "survivors": [], "picked": [], "drafted": [],
-                           "reviewed": [], "verified": [], "screened": [], "stats": {}, "log": []})
+                           "reviewed": [], "verified": [], "messages": [], "screened": [], "stats": {}, "log": []})
