@@ -1,4 +1,5 @@
 langgraph==1.2.11
+pydantic==2.13.5
 requests==2.34.2
 feedparser==6.0.14
 python-dotenv==1.2.3

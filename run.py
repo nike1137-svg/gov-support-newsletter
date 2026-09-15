@@ -3,7 +3,7 @@
     .venv\\Scripts\\python.exe run.py              # 직전 24시간
     .venv\\Scripts\\python.exe run.py --hours 72   # 창을 바꿔 시험
 
-끝나면 store/metrics.jsonl 에 한 줄, store/runs/ 에 이번 실행의 기사 목록을 남긴다.
+끝나면 store/metrics.jsonl 에 한 줄, store/runs/ 에 이번 실행의 기사·라벨·선택 결과를 남긴다.
 """
 
 import argparse
@@ -11,7 +11,7 @@ import json
 import pathlib
 from datetime import datetime, timedelta, timezone
 
-from graph import HOURS, run
+from graph import HOURS, MODEL, run
 
 ROOT = pathlib.Path(__file__).resolve().parent
 METRICS = ROOT / "store" / "metrics.jsonl"
@@ -29,16 +29,22 @@ def main():
     for line in out["log"]:
         print(line)
 
+    print("\n오늘 고른 기사")
+    for p in out["picked"]:
+        print(f"  {p['rank']}. [{p['label']}] {p['title'][:50]} ({p['source']})")
+        print(f"     └ {p['why_pick']}")
+
     run_id = started.strftime("%Y-%m-%d_%H%M")
     RUNS.mkdir(parents=True, exist_ok=True)
-    (RUNS / f"{run_id}.json").write_text(
-        json.dumps({"run_id": run_id, "collected": out["collected"]}, ensure_ascii=False, indent=2),
-        encoding="utf-8")
+    run_file = RUNS / f"{run_id}.json"
+    run_file.write_text(json.dumps({"run_id": run_id, "model": MODEL, "collected": out["collected"],
+                                    "screened": out["screened"], "picked": out["picked"]},
+                                   ensure_ascii=False, indent=2), encoding="utf-8")
 
-    row = {"run_id": run_id, "stats": out["stats"], "log": out["log"]}
+    row = {"run_id": run_id, "model": MODEL, "stats": out["stats"], "log": out["log"]}
     with METRICS.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    print(f"\n기록: {METRICS.relative_to(ROOT)} · {(RUNS / f'{run_id}.json').relative_to(ROOT)}")
+    print(f"\n기록: {METRICS.relative_to(ROOT)} · {run_file.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
