@@ -1,3 +1,5 @@
+langgraph==1.2.11
 requests==2.34.2
 feedparser==6.0.14
 python-dotenv==1.2.3
+PyYAML==6.0.3

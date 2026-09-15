@@ -17,20 +17,22 @@ from urllib.parse import urlparse
 
 import feedparser
 import requests
+import yaml
 from dotenv import load_dotenv
 
-load_dotenv()
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env")
 KST = timezone(timedelta(hours=9))
 NOW = datetime.now(KST)
 WINDOW_H = 72
 PIPELINE_MIN_PER_DAY = 5
 UA = {"User-Agent": "Mozilla/5.0 (gov-support-newsletter)"}
-READER_WORDS = ("창업", "스타트업", "소상공인", "중소기업", "1인", "지원", "정책", "공고", "모집", "세금", "투자")
-OUT = pathlib.Path("store/source_probe.json")
+OUT = ROOT / "store" / "source_probe.json"
 
-# 과제가 제외하라고 한 소스 — 후보 주소가 여기 걸리면 측정하지 않고 멈춘다
-EXCLUDED_HOSTS = ("openai.com", "deepmind.google", "techcrunch.com", "theverge.com",
-                  "technologyreview.com", "aitimes.com")
+# 독자 키워드와 제외 소스는 audience.yaml 한 곳에서 읽는다
+AUDIENCE = yaml.safe_load((ROOT / "audience.yaml").read_text(encoding="utf-8"))
+READER_WORDS = tuple(AUDIENCE["reader_keywords"])
+EXCLUDED_HOSTS = tuple(AUDIENCE["exclude"]["source_hosts"])
 
 FREE_RSS = {"key": "불필요", "cost": "무료 (공개 RSS)", "limit": "표기 없음"}
 
@@ -200,7 +202,7 @@ def main():
 
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps({"criteria_version": "v2", "measured_at": NOW.isoformat(timespec="seconds"),
-                               "window_hours": WINDOW_H, "criteria": "docs/source-criteria.md",
+                               "window_hours": WINDOW_H, "criteria": "docs/source-criteria.md · audience.yaml",
                                "excluded_hosts_checked": list(EXCLUDED_HOSTS),
                                "pipeline": pipeline, "sources": rows},
                               ensure_ascii=False, indent=2), encoding="utf-8")
@@ -219,7 +221,7 @@ def main():
               f"{c3s:<16}{c4['ratio']:<8}{','.join(r['failed_on'])}")
     print(f"\n채택 {pipeline['adopted_count']}곳 · 하루 합계 {pipeline['per_day_sum']}건 (중복 제거 전, + 는 하한값)"
           f" → 파이프라인 {mark(pipeline['pass'])}")
-    print(f"저장: {OUT}")
+    print(f"저장: {OUT.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
