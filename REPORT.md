@@ -1,7 +1,24 @@
-# 1인 창업 지원 뉴스 브리핑 에이전트 — REPORT
+# REPORT — 1인 창업 지원 뉴스 브리핑 에이전트 - 조경호
 
-매일 아침 정부·공공 지원사업과 창업 소식을 모아 **선별 → 요약·인사이트 → 자동 검수**를 거쳐 텔레그램으로 보내는 LangGraph 에이전트.
-저장소: https://github.com/nike1137-svg/gov-support-newsletter · 모든 수치는 2026-09-15 실측이며 근거 파일 경로를 함께 적었다.
+「나만의 뉴스레터 에이전트 구축하기」 제출 보고서.
+
+- **저장소**: https://github.com/nike1137-svg/gov-support-newsletter
+- **독자**: 혼자 사업을 준비하거나 막 시작한 1인 창조기업 운영자
+- **발행 채널**: 텔레그램 봇 (HTML 메시지 · 4096자 넘으면 나눠 보냄)
+- **주기**: 매일 07:30 KST 발송
+  - GitHub Actions 예약 실행 · 수동 실행 버튼(발행 없이 로그만 남기기 선택 가능)
+  - 실행이 끝나면 `store/metrics.jsonl` · `store/runs/` 를 저장소에 커밋
+- **모델**: `gpt-4.1-mini`, temperature 0, 모든 LLM 호출 구조화 출력(pydantic) · 1회 실행 약 $0.03
+- **과제 제외 소스 6곳**(OpenAI · DeepMind · TechCrunch · The Verge · MIT TR · AI타임스): 주제가 달라 후보에 넣지 않았고, 수집·측정 전에 코드가 주소를 검사해 걸리면 멈춘다
+- 모든 수치는 2026-09-15 실측이며 근거 파일 경로를 함께 적었다
+
+| 필수 단계 | 구현 위치 | 이 보고서 |
+|---|---|---|
+| 1. 자료 수집 (3곳 이상, 채택·탈락 근거) | `graph.collect` · `tools/probe_sources.py` · `docs/source-criteria.md` | 2장 |
+| 2. 자료 선별 (3~5건, 기준과 근거 로그) | `graph.prelim` · `graph.final` · `audience.yaml` | 3장 |
+| 3. 요약 및 인사이트 | `graph.write` · `graph.extract_body` · `graph.draft_ok` | 4장 · 6장 |
+| 4. 자동 검수 및 예외 처리 | `graph.verify` · `graph.code_check` · `tools/prove_verify.py` | 5장 |
+| 5. 최종 발행 | `graph.publish` · `.github/workflows/daily.yml` | 5장 |
 
 ---
 
