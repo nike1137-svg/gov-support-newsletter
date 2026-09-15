@@ -1,6 +1,6 @@
 # 1인 창업 지원 뉴스 브리핑 에이전트
 
-혼자 사업을 준비하거나 막 시작한 **1인 창조기업 운영자**에게, 매일 아침 07:30 지원사업 공고와 창업 소식을
+혼자 사업을 준비하거나 막 시작한 **1인 창조기업 운영자**에게, 매일 아침 지원사업 공고와 창업 소식을
 **수집 → 선별 → 요약·인사이트 → 자동 검수 → 텔레그램 발행**하는 LangGraph 에이전트.
 
 > 「나만의 뉴스레터 에이전트 구축하기」 과제 제출작 · 설계 판단과 근거 수치는 **[REPORT.md](REPORT.md)**
@@ -53,7 +53,7 @@
 | LLM | `gpt-4.1-mini` · temperature 0 · 구조화 출력 (`pydantic` 스키마) · HTTP 직접 호출 |
 | 수집 · 본문 | `requests` · `feedparser` (RSS) · `trafilatura` (본문) · 기업마당 전용 추출기 |
 | 설정 | `PyYAML` (`audience.yaml`) · `python-dotenv` |
-| 실행 · 발행 | GitHub Actions (매일 07:30 KST) · Telegram Bot API |
+| 실행 · 발행 | 노트북 작업 스케줄러 (매일 08:10 KST) · GitHub Actions (수동 실행) · Telegram Bot API |
 
 ## 프로젝트 구조
 
@@ -66,7 +66,7 @@ gov-support-newsletter/
 ├── REPORT.md                    보고서
 ├── CLAUDE.md                    AI 코딩 에이전트용 프로젝트 규칙 · 인계 메모
 ├── .env.example                 환경변수 이름 (값은 .env 에 · 커밋 안 됨)
-├── .github/workflows/daily.yml  매일 07:30 KST 실행 · 기록 커밋
+├── .github/workflows/daily.yml  GitHub 에서 손으로 실행 (예약은 뺐다 — 아래 참고)
 │
 ├── store/
 │   ├── metrics.jsonl            실행마다 단계별 수치 · 라벨 건수 · 토큰
@@ -81,6 +81,7 @@ gov-support-newsletter/
 │   └── telegram-1.png · telegram-2.png   수신 화면
 │
 └── tools/
+    ├── daily.py                 노트북 작업 스케줄러가 매일 부르는 진입점 (실행 · 알림 · 기록 push)
     ├── probe_sources.py         소스 후보 측정 (기준 C1~C5)
     ├── prove_verify.py          검수가 틀린 요약을 걸러내는지 증명 (실제 LLM · 약 $0.02)
     ├── verify_env.py            필수 키가 비면 시작 전에 멈추는지 ┐
@@ -121,6 +122,30 @@ Copy-Item .env.example .env       # 메모장으로 열어 키를 채운다
 
 GitHub Actions 에서는 필수 4개를 저장소 **Secrets** 에 같은 이름으로 넣는다.
 
+## 매일 실행은 노트북에서 한다
+
+GitHub Actions 예약을 쓰지 않는다. **해외 실행 서버에서 `bizinfo.go.kr` · `mss.go.kr` 에 연결이 되지 않는다.**
+
+| 어디서 | 정부 소스 3곳 | 다른 소스 · OpenAI · 텔레그램 |
+|---|---|---|
+| GitHub 실행 서버 (2026-09-15 17시 · 09-16 08시) | `ConnectTimeout` | 정상 |
+| 한국 노트북 (같은 시각) | HTTP 200 · 0.6초 | 정상 |
+
+그래서 **매일 발행은 노트북 작업 스케줄러가, 시험 실행은 GitHub 수동 실행이** 맡는다.
+둘 다 켜 두면 같은 날 두 번 발송되므로 워크플로에서 `schedule` 을 뺐다.
+
+```powershell
+# 매일 08:10 실행 · 그 시각에 꺼져 있었으면 켜진 뒤 실행 (한 번만 등록)
+$a = New-ScheduledTaskAction -Execute "C:\Users\nike1\projects\study\gov-support-newsletter\.venv\Scripts\python.exe" `
+     -Argument "tools\daily.py" -WorkingDirectory "C:\Users\nike1\projects\study\gov-support-newsletter"
+$t = New-ScheduledTaskTrigger -Daily -At 08:10
+$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+Register-ScheduledTask -TaskName "gov-support-newsletter" -Action $a -Trigger $t -Settings $s -Description "1인 창업 지원 뉴스 브리핑"
+```
+
+`tools/daily.py` 가 하는 일 — 실행 → `store/daily-run.log` 기록 → **실패하거나 소스가 응답하지 않으면 텔레그램으로 알림**
+→ `store/` 기록을 커밋 · push. 조용히 실패하면 "오늘은 공고가 없음"과 구분되지 않기 때문이다.
+
 ## 진행 상황
 
 | 단계 | 상태 | 확인 방법 |
@@ -129,7 +154,8 @@ GitHub Actions 에서는 필수 4개를 저장소 **Secrets** 에 같은 이름�
 | 2. 선별 — 예선/본선 · 기사별 라벨 | ✅ | `store/runs/` · `tools/verify_select.py` 4/4 |
 | 3. 요약·인사이트 — 대상 판정 · 할 일/확인/얻는 것 | ✅ | `tools/verify_write.py` 4/4 |
 | 4. 검수·예외 처리 — 재생성 · 스킵 · 검수 불가 미발행 | ✅ | `tools/prove_verify.py` 8/8 · `tools/verify_verify.py` 4/4 |
-| 5. 발행 — 텔레그램 · 매일 07:30 KST 자동 실행 | ✅ | Actions 엔드투엔드 성공 · 수신 확인 |
+| 5. 발행 — 텔레그램 · 매일 자동 실행 | ✅ | Actions 엔드투엔드 성공 · 수신 확인 |
+| 제출 후 — 매일 실행을 노트북으로 옮김 | ✅ | GitHub 실행 서버(해외)에서 정부 사이트 연결 실패 · [아래](#매일-실행은-노트북에서-한다) |
 | 보고서 · 제출 | ✅ | `REPORT.md` · 2026-09-15 제출 |
 | 제출 후 새 클론 점검 — 키 누락 시 가짜 "정상" 수정 | ✅ | `tools/verify_env.py` 4/4 · [dev-log](docs/dev-log.md#제출-후--새-클론-점검) |
 

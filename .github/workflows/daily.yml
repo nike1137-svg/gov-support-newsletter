@@ -1,9 +1,10 @@
-name: 매일 아침 브리핑
+name: 브리핑 수동 실행
 
+# 예약(cron)을 뺐다. GitHub 실행 서버(해외)에서 bizinfo.go.kr · mss.go.kr 에 연결이 안 된다
+# (2026-09-15 17시 · 09-16 08시 두 번 ConnectTimeout, 같은 시각 한국에서는 0.6초에 응답).
+# 매일 발행은 노트북 작업 스케줄러가 맡고(tools/daily.py), 이 워크플로는 손으로 시험할 때만 쓴다.
 on:
-  schedule:
-    - cron: "30 22 * * *"        # UTC 22:30 = KST 매일 07:30
-  workflow_dispatch:              # 손으로도 돌릴 수 있게
+  workflow_dispatch:
     inputs:
       dry_run:
         description: "발행하지 않고 로그만 남기기"
@@ -14,7 +15,7 @@ permissions:
   contents: write                 # 실행 기록을 저장소에 되돌리려면 필요하다
 
 concurrency:
-  group: daily-brief              # 손으로 누른 실행과 예약 실행이 겹쳐 두 번 보내지 않게
+  group: daily-brief              # 손으로 누른 실행이 겹쳐 두 번 보내지 않게
   cancel-in-progress: false
 
 jobs:
@@ -33,7 +34,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: 수집 → 선별 → 요약 → 검수 → 발행
-        # 예약 실행에는 inputs 가 비어 있어 --send 가 된다
+        # dry_run 을 체크하지 않으면 실제 발행(--send)
         run: python run.py ${{ inputs.dry_run && '--dry-run' || '--send' }}
         env:                      # 비밀값은 여기로만 들어간다
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

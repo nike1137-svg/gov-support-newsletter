@@ -28,10 +28,14 @@
 ## 발행 경로
 
 ```
-매일 07:30 KST 예약 (Actions)   →  텔레그램 @SoloBizBriefinggBot (g 두 개)
-Run workflow (수동)              →  텔레그램 (dry_run 체크 시 보내지 않음)
-로컬 run.py --send               →  텔레그램
+매일 08:10 KST (노트북 작업 스케줄러 → tools/daily.py)  →  텔레그램 @SoloBizBriefinggBot (g 두 개)
+Run workflow (수동, GitHub)                            →  텔레그램 (dry_run 체크 시 보내지 않음)
+로컬 run.py --send                                      →  텔레그램
 ```
+
+**GitHub Actions 예약은 뺐다.** 해외 실행 서버에서 `bizinfo.go.kr` · `mss.go.kr` 에 연결이 안 된다
+(2026-09-15 17시 · 09-16 08시 ConnectTimeout, 같은 시각 한국 노트북에서는 0.6초에 응답).
+매일 발행은 노트북이 맡고, Actions 는 손으로 시험할 때만 쓴다. **둘 다 켜 두면 같은 날 두 번 발송된다.**
 
 채팅 ID 는 `newsletter-agent` 와 같은 마커스님 개인 채팅. 봇은 다르다 (`newsletter-agent` 는 `@SoloBizBriefingBot`).
 Secrets: `OPENAI_API_KEY` · `BIZINFO_API_KEY` · `TELEGRAM_BOT_TOKEN` · `TELEGRAM_CHAT_ID`
