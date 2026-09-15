@@ -78,7 +78,6 @@ gov-support-newsletter/
 ├── docs/
 │   ├── source-criteria.md       소스 채택 기준 v1 → v2 와 측정 결과표
 │   ├── dev-log.md               2~5단계 구현 중 드러난 결함과 고친 방법
-│   ├── ai-collab.md             AI 협업 기록 — 역할 분담 · 실제 요청 · AI 가 틀린 곳
 │   └── telegram-1.png · telegram-2.png   수신 화면
 │
 └── tools/
