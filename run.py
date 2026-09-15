@@ -29,8 +29,8 @@ def main():
     for line in out["log"]:
         print(line)
 
-    print("\n오늘 쓴 기사")
-    for d in sorted(out["drafted"], key=lambda x: x["rank"]):
+    print("\n검수를 통과한 기사")
+    for d in sorted(out["reviewed"] or out["drafted"], key=lambda x: x["rank"]):
         if d["status"] != "ok":
             print(f"  {d['rank']}. (스킵) {d['title'][:40]} — {d['skip_reason']}")
             continue
@@ -40,14 +40,18 @@ def main():
         print(f"     확인  {d['insight']['check']}")
         print(f"     얻는것 {d['insight']['gain']}")
         print(f"     대상  {d['fit']} — \"{d['fit_quote'][:40]}\"")
+        if "verify" in d:
+            last = d["verify"]["trail"][-1]
+            print(f"     검수  {d['verify']['result']} · 주장 {last['claims']}개 · 근거 없음 {len(last['unsupported'])}"
+                  + (f" · 표시 {last['code_flags']}" if last["code_flags"] else ""))
 
     run_id = started.strftime("%Y-%m-%d_%H%M")
     RUNS.mkdir(parents=True, exist_ok=True)
     run_file = RUNS / f"{run_id}.json"
     # 본문은 저장소에 올리지 않는다 (기사 저작권). 길이와 출처, 인용한 근거 문장만 남긴다
-    drafted = [{k: v for k, v in d.items() if k != "body"} for d in out["drafted"]]
+    reviewed = [{k: v for k, v in d.items() if k != "body"} for d in (out["reviewed"] or out["drafted"])]
     run_file.write_text(json.dumps({"run_id": run_id, "model": MODEL, "collected": out["collected"],
-                                    "screened": out["screened"], "picked": out["picked"], "drafted": drafted},
+                                    "screened": out["screened"], "picked": out["picked"], "reviewed": reviewed},
                                    ensure_ascii=False, indent=2), encoding="utf-8")
 
     row = {"run_id": run_id, "model": MODEL, "stats": out["stats"], "log": out["log"]}

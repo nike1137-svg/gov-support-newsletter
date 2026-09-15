@@ -2,7 +2,7 @@
 
     수집 → 선별 → 요약 → 검수 → 발행
 
-지금 구현된 노드: 수집(collect) → 예선(prelim) → 본선(final) → 요약·인사이트(write, 기사마다 병렬)
+지금 구현된 노드: 수집(collect) → 예선(prelim) → 본선(final) → 요약·인사이트(write, 기사마다 병렬) → 검수(verify)
 독자 · 기준 · 제외 조건은 audience.yaml, 소스 채택 근거는 docs/source-criteria.md
 """
 
@@ -47,6 +47,8 @@ class Brief(TypedDict):
     survivors: list                             # 예선 통과 — 기준 라벨이 붙은 후보
     picked: list                                # 본선 선택 3~5건
     drafted: Annotated[list, operator.add]      # 요약·인사이트 — 워커들이 나눠 채운다
+    reviewed: list                              # 검수 기록이 붙은 작성물 전체 (스킵 포함). 줄이는 키라 리듀서 없음
+    verified: list                              # 검수를 통과해 발행할 것
     screened: Annotated[list, operator.add]     # 기사마다 붙은 라벨과 이유 — 선별 기준이 동작한 근거
     stats: Annotated[dict, merge]               # 단계별 수치 — store/metrics.jsonl 로 간다
     log: Annotated[list, operator.add]          # 사람이 읽는 실행 기록
@@ -429,14 +431,15 @@ def final(s: Brief) -> dict:
         picked = [{**c, "rank": n + 1, "why_pick": c["why_kept"]} for n, c in enumerate(cands)]
         tags = [record(c, "본선", c["label"], "후보가 최소 발행 수 이하라 모두 보냄") for c in cands]
     else:
-        want_max = min(TARGET_MAX, len(cands))
+        # 검수에서 빠질 몫을 남겨 둔다 — 3건만 고르면 한 건만 불합격해도 최소 발행 수(3)를 못 채운다 (2026-09-15 실제로 2건)
+        want = min(TARGET_MAX, len(cands))
 
         def valid(out):
-            if not TARGET_MIN <= len(out.picks) <= want_max:
-                return f"{TARGET_MIN}~{want_max}건을 골라야 하는데 {len(out.picks)}건"
+            if len(out.picks) != want:
+                return f"정확히 {want}건을 골라야 하는데 {len(out.picks)}건"
             return id_problems(out.picks + out.drops, cands, what="선택 또는 탈락")
 
-        system = (reader_brief() + f"\n\n예선을 통과한 후보입니다. 오늘 아침 이 독자에게 보낼 {TARGET_MIN}~{want_max}건을 "
+        system = (reader_brief() + f"\n\n예선을 통과한 후보입니다. 오늘 아침 이 독자에게 보낼 기사 {want}건을 "
                   "중요한 순서대로 고르세요.\n기준 우선순위를 따르되, 같은 사업·같은 사건을 다룬 기사는 하나만 고르세요.\n"
                   "각 줄 맨 앞이 기사 ID 입니다. ID 와 그 줄의 제목을 그대로 옮겨 적고, 이유는 그 줄의 내용만 근거로 쓰세요.\n"
                   "고르지 않은 후보도 모두 drops 에 넣고 이유를 적으세요.")
@@ -551,11 +554,13 @@ def sentences(text):
 
 
 def squash(s):
-    return re.sub(r"\s+", "", s or "")
+    """글자와 숫자만 남긴다. 표 기호(|)·문장부호·공백 차이로 같은 구절을 다르다고 보지 않게 —
+    2026-09-15 중기부 본문이 '| 공고번호 | 제2026-556호 |' 표였는데 LLM 이 | 를 빼고 인용해 오탐이 났다"""
+    return re.sub(r"[\W_]+", "", s or "")
 
 
 def in_body(quote, body):
-    """인용이 본문에 실제로 있는가 — 공백·줄바꿈 차이만 허용한다"""
+    """인용이 본문에 실제로 있는가 — 글자·숫자의 순서가 그대로 이어져야 한다"""
     q = squash(quote)
     return len(q) >= 4 and q in squash(body)
 
@@ -596,6 +601,15 @@ def fan_write(s: Brief):
     return [Send("write", {"item": p}) for p in s["picked"]] or [END]
 
 
+def compose(it, body, feedback=None):
+    """요약·인사이트를 한 번 쓴다. feedback 이 있으면 검수가 지적한 문제를 고쳐 다시 쓴다 (4단계 재생성)"""
+    user = f"[제목] {it['title']}\n[출처] {it['source']}\n\n[본문]\n{body}"
+    if feedback:
+        user += ("\n\n[이전 작성물이 검수에서 불합격한 이유]\n" + feedback +
+                 "\n위 문제를 고쳐 처음부터 다시 쓰세요. 본문에 없는 내용은 빼세요.")
+    return ask(Draft, sys_write(), user, check=lambda out: draft_ok(out, body))
+
+
 def write(s: WriteIn) -> dict:
     it = s["item"]
     body, body_src = extract_body(it)
@@ -606,8 +620,7 @@ def write(s: WriteIn) -> dict:
         return {"drafted": [{**base, "status": "skip", "skip_reason": "본문도 피드 요약도 없음"}],
                 "log": [f"   요약 스킵 {it['id']} · 본문 없음 · {it['title'][:30]}"]}
     try:
-        d, usage = ask(Draft, sys_write(), f"[제목] {it['title']}\n[출처] {it['source']}\n\n[본문]\n{body}",
-                       check=lambda out: draft_ok(out, body))
+        d, usage = compose(it, body)
     except LLMError as ex:
         return {"drafted": [{**base, "status": "skip", "skip_reason": f"요약 LLM 실패: {ex}"}],
                 "log": [f"   요약 스킵 {it['id']} · LLM 실패 · {it['title'][:30]}"]}
@@ -619,6 +632,194 @@ def write(s: WriteIn) -> dict:
             "log": [f"   요약 {it['id']} · {body_src} {len(body)}자 · {d.fit} · {d.headline}"]}
 
 
+# ---------------------------------------------------------------- 검수
+# 두 겹으로 본다.
+#  1) 코드 대조 — 인용(evidence · fit_quote)이 본문에 글자 그대로 있는가, 요약의 날짜가 본문에 있는가 → 어기면 불합격
+#                 금액은 파생 계산(월 30만 원 × 6개월 = 180만 원)이 있을 수 있어 불합격 대신 LLM 에게 넘기는 '표시'로만 쓴다
+#  2) LLM 대조 — 작성과 분리된 호출이 주장마다 본문 근거를 찾는다. 근거로 댄 구절도 본문에 있는지 코드가 다시 본다
+# 불합격이면 문제를 넣어 한 번 재생성 → 재검수 → 그래도 불합격이면 스킵. 검수 호출이 실패하면 검수 안 된 기사는 보내지 않는다.
+
+DATE_FULL = re.compile(r"(?:\d{4})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})")
+DATE_MD = re.compile(r"(?<!\d)(\d{1,2})\s*월\s*(\d{1,2})\s*일")
+MONEY = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(억|천만|백만|만|천)?\s*원")
+UNIT = {"억": 10**8, "천만": 10**7, "백만": 10**6, "만": 10**4, "천": 10**3, None: 1}
+
+
+COUNT = re.compile(r"(\d+)\s*(?:개월|회|년간|명|건|차례)")
+
+
+def dates_in(text):
+    return {(int(m), int(d)) for m, d in DATE_FULL.findall(text) + DATE_MD.findall(text)}
+
+
+def money_in(text):
+    return {int(float(n.replace(",", "")) * UNIT[u or None]) for n, u in MONEY.findall(text)}
+
+
+def derived_money(body):
+    """본문 금액 × 본문의 기간·횟수로 나오는 값 (월 30만 원 × 6개월 = 180만 원).
+    2026-09-15 증명에서 검수 LLM 이 '계산한 값'이라고 적고도 근거 없음으로 판정했다 — 계산은 코드가 확인한다."""
+    return {a * int(n) for a in money_in(body) for n in COUNT.findall(body)}
+
+
+def grounded(quote, body):
+    """검수자가 댄 근거 구절이 본문에 있는가. 날짜·금액 표기를 바꿔 옮긴 것도 인정한다"""
+    if in_body(quote, body):
+        return True
+    dq, mq = dates_in(quote), money_in(quote)
+    return bool(dq or mq) and dq <= dates_in(body) and mq <= money_in(body)
+
+
+def facts_accounted(claim, body):
+    """주장의 날짜·금액·숫자가 전부 본문에 있거나 본문 수치로 계산되는가"""
+    if not dates_in(claim) <= dates_in(body):
+        return False
+    if not money_in(claim) <= money_in(body) | derived_money(body):
+        return False
+    rest = MONEY.sub(" ", DATE_MD.sub(" ", DATE_FULL.sub(" ", claim)))
+    body_nums = set(re.findall(r"\d+", body))
+    return set(re.findall(r"\d+", rest)) <= body_nums and bool(money_in(claim))
+
+
+def written(d):
+    ins = d["insight"]
+    return f"{d['headline']}\n{d['summary']}\n{ins['action']}\n{ins['check']}\n{ins['gain']}"
+
+
+def code_check(d, body):
+    """(불합격 사유 목록, LLM 에게 넘길 표시 목록)"""
+    fails, flags = [], []
+    lost = [q for q in d["evidence"] if not in_body(q, body)]
+    if lost:
+        fails.append(f"evidence 인용이 본문에 없음: {[q[:30] for q in lost]}")
+    if d["fit"] != "불명" and not in_body(d["fit_quote"], body):
+        fails.append(f"fit_quote 가 본문에 없음: '{d['fit_quote'][:30]}'")
+    extra_dates = dates_in(written(d)) - dates_in(body)
+    if extra_dates:
+        fails.append(f"본문에 없는 날짜: {sorted(f'{m}월 {x}일' for m, x in extra_dates)}")
+    extra_money = money_in(written(d)) - money_in(body)
+    calc = extra_money & derived_money(body)
+    if calc:
+        flags.append(f"본문 수치로 계산되는 금액(코드 확인): {sorted(calc)}원 — 근거 있음으로 볼 것")
+    if extra_money - calc:
+        flags.append(f"본문에도 없고 계산으로도 안 나오는 금액: {sorted(extra_money - calc)}원 — 특히 확인할 것")
+    return fails, flags
+
+
+class Claim(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    claim: str = Field(description="작성물에서 뽑은 사실 주장 하나 (날짜 · 금액 · 대상 · 조건 · 지원내용 · 기관)")
+    supported: bool = Field(description="본문에 근거가 있으면 true. 본문 수치로 정확히 계산되는 값도 true")
+    quote: str = Field(description="근거가 된 본문 구절을 그대로. 근거가 없으면 빈 문자열")
+    problem: str = Field(description="근거가 없거나 틀렸다면 무엇이 틀렸는지. 문제가 없으면 빈 문자열")
+
+
+class Verdict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    claims: list[Claim] = Field(description="판정 전에 주장을 먼저 모두 뽑는다")   # ok 보다 먼저 — 결론부터 정하지 않게
+    ok: bool = Field(description="모든 사실 주장에 근거가 있으면 true")
+
+
+SYS_VERIFY = ("당신은 뉴스레터 검수자입니다. 작성물이 본문에 근거하는지만 판정하세요.\n"
+              "- 작성물에서 사실 주장(날짜 · 금액 · 대상 · 자격 조건 · 지원내용 · 기관 · 신청방법)을 모두 뽑으세요\n"
+              "- 주장마다 본문에서 근거 구절을 찾아 그대로 옮기세요. 없으면 supported=false\n"
+              "- '~하세요' 같은 조언 자체는 판정하지 않습니다. 조언 안에 들어간 사실(날짜 · 조건)은 판정합니다\n"
+              "- 본문 수치로 정확히 계산되는 값(월 30만 원 × 6개월 = 180만 원)은 근거 있음입니다\n"
+              "- 날짜 표기 차이(2026.09.18 과 9월 18일)나 문장을 바꿔 쓴 것은 문제가 아닙니다\n"
+              "- 코드 대조 표시가 있으면 그 항목을 특히 확인하세요")
+
+
+def verdict_ok(v: Verdict):
+    # 인용 글자 일치는 여기서 강제하지 않는다 — 2026-09-15 증명에서 날짜를 '9월 8일'로 바꿔 옮긴 것까지 거부해
+    # 세 번 재시도 끝에 정상 요약이 '검수 불가'가 됐다. 인용은 judge 에서 느슨하게 대조해 경고로 남긴다.
+    if not v.claims:
+        return "사실 주장을 하나 이상 뽑으세요"
+    if v.ok != all(c.supported for c in v.claims):
+        return "ok 는 모든 주장이 supported 일 때만 true 입니다"
+    return None
+
+
+def judge(d, body):
+    """한 번 검수한다 → (합격 여부, 기록, 사용량). 검수 LLM 이 끝내 실패하면 LLMError"""
+    fails, flags = code_check(d, body)
+    user = (f"[본문]\n{body}\n\n[작성물]\n{written(d)}\n\n[대상 판정] {d['fit']} — {d['fit_quote']}"
+            + (f"\n\n[코드 대조 표시]\n" + "\n".join(flags) if flags else ""))
+    v, usage = ask(Verdict, SYS_VERIFY, user, check=verdict_ok)
+    unsupported, corrected = [], []
+    for c in v.claims:
+        if c.supported:
+            continue
+        if facts_accounted(c.claim, body):          # LLM 은 근거 없다 했지만 숫자가 전부 본문·계산으로 맞는다
+            corrected.append(c.claim)
+        else:
+            unsupported.append(c)
+    weak_quotes = [c.claim for c in v.claims if c.supported and not grounded(c.quote, body)]
+    passed = not fails and not unsupported
+    record_ = {"passed": passed, "code_fails": fails, "code_flags": flags, "claims": len(v.claims),
+               "unsupported": [{"claim": c.claim, "problem": c.problem} for c in unsupported],
+               "corrected_by_code": corrected, "llm_ok": v.ok, "weak_quotes": weak_quotes}
+    return passed, record_, usage
+
+
+def feedback_of(rec):
+    return "\n".join([f"- {x}" for x in rec["code_fails"]] +
+                     [f"- '{u['claim']}': {u['problem']}" for u in rec["unsupported"]])
+
+
+def verify_one(d):
+    """검수 → 불합격이면 1회 재생성 → 재검수 → 그래도 불합격이면 스킵"""
+    body, usage, trail = d["body"], {}, []
+    try:
+        passed, rec, u = judge(d, body)
+        usage = add_usage(usage, u)
+        trail.append({"attempt": "검수", **rec})
+        if passed:
+            return {**d, "verify": {"result": "통과", "trail": trail, "usage": usage}}
+        try:
+            new, u = compose(d, body, feedback=feedback_of(rec))
+            usage = add_usage(usage, u)
+        except LLMError as ex:
+            return {**d, "status": "skip", "skip_reason": f"검수 불합격 · 재생성 실패: {ex}",
+                    "verify": {"result": "불합격", "trail": trail, "usage": usage}}
+        d2 = {**d, **new.model_dump()}
+        if d2["fit"] == "대상아님":
+            return {**d2, "status": "skip", "skip_reason": f"재생성에서 대상 아님: {d2['fit_reason']}",
+                    "verify": {"result": "불합격", "trail": trail, "usage": usage}}
+        passed, rec, u = judge(d2, body)
+        usage = add_usage(usage, u)
+        trail.append({"attempt": "재생성 후 재검수", **rec})
+        if passed:
+            return {**d2, "verify": {"result": "재생성 후 통과", "trail": trail, "usage": usage}}
+        return {**d2, "status": "skip", "skip_reason": "검수 불합격 (재생성 후에도)",
+                "verify": {"result": "불합격", "trail": trail, "usage": usage}}
+    except LLMError as ex:
+        # 검수를 못 했으면 맞는지 모르는 것이다 — 보내지 않는 쪽이 덜 나쁘다
+        return {**d, "status": "skip", "skip_reason": f"검수 불가: {ex}",
+                "verify": {"result": "검수 불가", "trail": trail, "usage": usage}}
+
+
+def verify(s: Brief) -> dict:
+    out, counts = [], {}
+    for d in sorted(s["drafted"], key=lambda x: x["rank"]):
+        if d["status"] != "ok":
+            out.append(d)
+            continue
+        v = verify_one(d)
+        out.append(v)
+        counts[v["verify"]["result"]] = counts.get(v["verify"]["result"], 0) + 1
+    passed = [d for d in out if d["status"] == "ok"]
+    short = len(passed) < TARGET_MIN
+    stats = {"verify": {"checked": sum(counts.values()), "results": counts, "publishable": len(passed),
+                        "below_min": short,
+                        "usage": {k: sum(d.get("verify", {}).get("usage", {}).get(k, 0) for d in out)
+                                  for k in ("calls", "input", "output", "retries")}}}
+    lines = [f"⊙ 검수  {sum(counts.values())} → 발행 가능 {len(passed)}건 · {counts}"
+             + (f" · ⚠ 최소 발행 수 {TARGET_MIN}건 미달 — 있는 만큼 보낸다" if short else "")]
+    lines += [f"   검수 {d['id']} · {d['verify']['result']}" + (f" · {d['skip_reason'][:50]}" if d["status"] != "ok" else "")
+              for d in out if "verify" in d]
+    return {"verified": passed, "reviewed": out, "stats": stats, "log": lines}
+
+
 # ---------------------------------------------------------------- 그래프
 def build():
     g = StateGraph(Brief)
@@ -626,14 +827,16 @@ def build():
     g.add_node("prelim", prelim)
     g.add_node("final", final)
     g.add_node("write", write)
+    g.add_node("verify", verify)
     g.add_edge(START, "collect")
     g.add_edge("collect", "prelim")
     g.add_edge("prelim", "final")
     g.add_conditional_edges("final", fan_write, ["write", END])
-    g.add_edge("write", END)
+    g.add_edge("write", "verify")                  # 워커가 모두 끝나면 한 번 모인다
+    g.add_edge("verify", END)
     return g.compile()
 
 
 def run(hours: int = HOURS) -> dict:
     return build().invoke({"hours": hours, "collected": [], "survivors": [], "picked": [], "drafted": [],
-                           "screened": [], "stats": {}, "log": []})
+                           "reviewed": [], "verified": [], "screened": [], "stats": {}, "log": []})

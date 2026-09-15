@@ -1,0 +1,242 @@
+{
+  "run_at": "2026-09-15T14:11:45+09:00",
+  "model": "gpt-4.1-mini",
+  "as_expected": "8/8",
+  "tokens": {
+    "calls": 10,
+    "input": 14555,
+    "output": 6913
+  },
+  "cost_usd_est": 0.0169,
+  "cases": [
+    {
+      "case": "A 정상",
+      "tampered": "변조 없음",
+      "expected_pass": true,
+      "actual_pass": true,
+      "as_expected": true,
+      "record": {
+        "passed": true,
+        "code_fails": [],
+        "code_flags": [
+          "본문 수치로 계산되는 금액(코드 확인): [1800000]원 — 근거 있음으로 볼 것"
+        ],
+        "claims": 8,
+        "unsupported": [],
+        "corrected_by_code": [],
+        "llm_ok": true,
+        "weak_quotes": [
+          "임차료를 최대 180만 원 지원한다"
+        ]
+      },
+      "usage": {
+        "calls": 1,
+        "input": 1219,
+        "output": 657,
+        "retries": 0
+      }
+    },
+    {
+      "case": "B 금액 변조",
+      "tampered": "30만 → 50만",
+      "expected_pass": false,
+      "actual_pass": false,
+      "as_expected": true,
+      "record": {
+        "passed": false,
+        "code_fails": [],
+        "code_flags": [
+          "본문 수치로 계산되는 금액(코드 확인): [1800000]원 — 근거 있음으로 볼 것",
+          "본문에도 없고 계산으로도 안 나오는 금액: [500000]원 — 특히 확인할 것"
+        ],
+        "claims": 10,
+        "unsupported": [
+          {
+            "claim": "사업장 임차료를 월 50만 원 한도로 최대 6개월간 지원합니다.",
+            "problem": "본문에는 월 50만 원 한도라는 내용이 없습니다. 본문에는 월 30만 원 한도라고 명시되어 있습니다."
+          }
+        ],
+        "corrected_by_code": [],
+        "llm_ok": false,
+        "weak_quotes": []
+      },
+      "usage": {
+        "calls": 1,
+        "input": 1243,
+        "output": 804,
+        "retries": 0
+      }
+    },
+    {
+      "case": "C 마감일 변조",
+      "tampered": "9/18 → 9/28",
+      "expected_pass": false,
+      "actual_pass": false,
+      "as_expected": true,
+      "record": {
+        "passed": false,
+        "code_fails": [
+          "본문에 없는 날짜: ['9월 28일']"
+        ],
+        "code_flags": [
+          "본문 수치로 계산되는 금액(코드 확인): [1800000]원 — 근거 있음으로 볼 것"
+        ],
+        "claims": 10,
+        "unsupported": [
+          {
+            "claim": "작성물의 신청기간은 9월 8일부터 9월 28일까지이다.",
+            "problem": "작성물의 신청기간은 9월 8일부터 9월 28일까지이며, 본문 신청기간은 9월 8일부터 9월 18일까지임."
+          }
+        ],
+        "corrected_by_code": [],
+        "llm_ok": false,
+        "weak_quotes": [
+          "작성물의 임차료 지원 최대 금액은 180만 원이다."
+        ]
+      },
+      "usage": {
+        "calls": 1,
+        "input": 1219,
+        "output": 673,
+        "retries": 0
+      }
+    },
+    {
+      "case": "D 없는 조건 추가",
+      "tampered": "본문에 없는 '업력 3년 이내' 조건",
+      "expected_pass": false,
+      "actual_pass": false,
+      "as_expected": true,
+      "record": {
+        "passed": false,
+        "code_fails": [],
+        "code_flags": [
+          "본문 수치로 계산되는 금액(코드 확인): [1800000]원 — 근거 있음으로 볼 것"
+        ],
+        "claims": 13,
+        "unsupported": [
+          {
+            "claim": "사업자등록 후 3년 이내인 기업만 신청할 수 있습니다.",
+            "problem": "본문에 사업자등록 후 3년 이내 조건이 없음"
+          }
+        ],
+        "corrected_by_code": [],
+        "llm_ok": false,
+        "weak_quotes": []
+      },
+      "usage": {
+        "calls": 1,
+        "input": 1236,
+        "output": 1052,
+        "retries": 0
+      }
+    },
+    {
+      "case": "E 나이 조건 변조",
+      "tampered": "18~39세 → 20~45세",
+      "expected_pass": false,
+      "actual_pass": false,
+      "as_expected": true,
+      "record": {
+        "passed": false,
+        "code_fails": [],
+        "code_flags": [
+          "본문 수치로 계산되는 금액(코드 확인): [1800000]원 — 근거 있음으로 볼 것"
+        ],
+        "claims": 8,
+        "unsupported": [
+          {
+            "claim": "신청자격: 공고일 기준 사업장 월 임차료를 납부 중이고 1년 이상 서구에 주민등록을 둔 18세 이상 39세 이하인 청년 창업자",
+            "problem": "작성물의 만 20~45세는 본문과 다름"
+          }
+        ],
+        "corrected_by_code": [],
+        "llm_ok": false,
+        "weak_quotes": []
+      },
+      "usage": {
+        "calls": 1,
+        "input": 1219,
+        "output": 547,
+        "retries": 0
+      }
+    },
+    {
+      "case": "F 계산된 금액 (오탐 확인)",
+      "tampered": "월 30만 원 × 6개월 = 180만 원 — 본문에 그대로는 없지만 맞는 값",
+      "expected_pass": true,
+      "actual_pass": true,
+      "as_expected": true,
+      "record": {
+        "passed": true,
+        "code_fails": [],
+        "code_flags": [
+          "본문 수치로 계산되는 금액(코드 확인): [1800000]원 — 근거 있음으로 볼 것"
+        ],
+        "claims": 13,
+        "unsupported": [],
+        "corrected_by_code": [],
+        "llm_ok": true,
+        "weak_quotes": []
+      },
+      "usage": {
+        "calls": 1,
+        "input": 1219,
+        "output": 1026,
+        "retries": 0
+      }
+    },
+    {
+      "case": "G 불합격 → 재생성 경로",
+      "tampered": "B 를 verify_one 에 넣음",
+      "result": "재생성 후 통과",
+      "status": "ok",
+      "leftover_tampered_value": false,
+      "as_expected": true,
+      "trail": [
+        {
+          "attempt": "검수",
+          "passed": false,
+          "code_fails": [],
+          "code_flags": [
+            "본문 수치로 계산되는 금액(코드 확인): [1800000]원 — 근거 있음으로 볼 것",
+            "본문에도 없고 계산으로도 안 나오는 금액: [500000]원 — 특히 확인할 것"
+          ],
+          "claims": 10,
+          "unsupported": [
+            {
+              "claim": "사업장 임차료를 월 50만 원 한도로 최대 6개월간 지원합니다.",
+              "problem": "본문에는 '사업장 임차료 월 30만 원 한도, 최대 6개월간 지원'이라고 되어 있으나 작성물은 '월 50만 원 한도'라고 함."
+            }
+          ],
+          "corrected_by_code": [],
+          "llm_ok": false,
+          "weak_quotes": []
+        },
+        {
+          "attempt": "재생성 후 재검수",
+          "passed": true,
+          "code_fails": [],
+          "code_flags": [],
+          "claims": 5,
+          "unsupported": [],
+          "corrected_by_code": [],
+          "llm_ok": true,
+          "weak_quotes": []
+        }
+      ],
+      "usage": {
+        "calls": 4,
+        "input": 7200,
+        "output": 2154,
+        "retries": 1
+      }
+    },
+    {
+      "case": "H 검수 LLM 실패",
+      "result": "검수 불가",
+      "status": "skip",
+      "as_expected": true
+    }
+  ]
+}
