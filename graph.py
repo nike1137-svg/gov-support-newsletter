@@ -2,10 +2,11 @@
 
     수집 → 선별 → 요약 → 검수 → 발행
 
-지금 구현된 노드: 수집(collect) → 예선(prelim) → 본선(final)
+지금 구현된 노드: 수집(collect) → 예선(prelim) → 본선(final) → 요약·인사이트(write, 기사마다 병렬)
 독자 · 기준 · 제외 조건은 audience.yaml, 소스 채택 근거는 docs/source-criteria.md
 """
 
+import html
 import operator
 import os
 import pathlib
@@ -18,9 +19,11 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import feedparser
 import requests
+import trafilatura
 import yaml
 from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import Send
 from pydantic import BaseModel, ConfigDict, Field
 
 ROOT = pathlib.Path(__file__).resolve().parent
@@ -43,6 +46,7 @@ class Brief(TypedDict):
     collected: list                             # 수집한 기사 (중복 제거 후)
     survivors: list                             # 예선 통과 — 기준 라벨이 붙은 후보
     picked: list                                # 본선 선택 3~5건
+    drafted: Annotated[list, operator.add]      # 요약·인사이트 — 워커들이 나눠 채운다
     screened: Annotated[list, operator.add]     # 기사마다 붙은 라벨과 이유 — 선별 기준이 동작한 근거
     stats: Annotated[dict, merge]               # 단계별 수치 — store/metrics.jsonl 로 간다
     log: Annotated[list, operator.add]          # 사람이 읽는 실행 기록
@@ -460,19 +464,176 @@ def final(s: Brief) -> dict:
     return {"picked": picked, "screened": tags, "stats": stats, "log": [line]}
 
 
+# ---------------------------------------------------------------- 요약 · 인사이트
+MIN_BODY = 200          # 이보다 짧으면 본문을 확인했다고 볼 수 없다
+BODY_MAX = 6000         # LLM 에 넣는 본문 길이 상한
+
+
+def bizinfo_body(html_text):
+    """기업마당 상세 페이지는 '항목명 + 내용' 쌍으로 되어 있어 trafilatura 가 메뉴만 뽑는다 (2026-09-15 확인, 298자).
+    쌍을 직접 읽어 '항목: 내용' 줄로 만든다."""
+    # 항목명에는 태그가 없고, 내용은 다음 <li> 를 넘지 않는다 — 넓게 잡으면 메뉴·스크립트까지 딸려온다 (첫 시도에서 6000자가 잡힘)
+    pairs = re.findall(r'<span class="s_title">\s*([^<]{1,40}?)\s*</span>\s*<div class="txt"[^>]*>'
+                       r'((?:(?!<li\b).){0,8000}?)</div>\s*</li>', html_text, re.S)
+    lines = [f"{strip_tags(html.unescape(k))}: {strip_tags(html.unescape(v))}" for k, v in pairs]
+    return "\n".join(line for line in lines if not line.endswith(": "))
+
+
+def extract_body(it):
+    """(본문, 출처). 본문을 못 뽑으면 RSS/API 요약으로 대신하고 출처에 그렇게 적는다"""
+    try:
+        r = requests.get(it["url"], headers=UA, timeout=TIMEOUT)
+        r.raise_for_status()
+        body = bizinfo_body(r.text) if "bizinfo.go.kr" in it["url"] else (
+            trafilatura.extract(r.text, include_tables=True, favor_recall=True) or "")
+    except requests.RequestException:
+        body = ""
+    if len(body) >= MIN_BODY:
+        return body[:BODY_MAX], "본문"
+    if len(it.get("summary", "")) >= MIN_BODY // 2:
+        return it["summary"], "피드 요약(본문 추출 실패)"
+    return "", "없음"
+
+
+NO_COND = "본문에 자격 조건이 없어 공고 원문 확인이 필요합니다."
+
+
+class Insight(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: str = Field(description="이 독자가 할 일 한 문장. ~하세요 로 끝낸다")
+    check: str = Field(description="본문에 적힌 신청 자격·조건을 구체적으로(나이·지역·업력·인원·업종 등) 한 문장. "
+                                   f"본문에 자격 조건이 전혀 없을 때만 '{NO_COND}'")
+    gain: str = Field(description="이 사업으로 독자가 얻는 것(돈 · 시간 · 판로 · 역량)을 본문 숫자와 함께 한 문장. "
+                                  "예: '월 30만 원씩 최대 6개월, 임차료를 최대 180만 원 줄일 수 있습니다.' "
+                                  "대상 여부 이야기는 쓰지 않는다")
+
+
+class Draft(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    # 2026-09-15 첫 실행에서 '상시근로자 5인 이상' 공고에 1인 창조기업이 신청하라는 인사이트가 나왔다.
+    # 선별은 목록만 보고 통과시키므로, 본문을 읽은 이 단계에서 대상 여부를 다시 판정한다.
+    fit: Literal["대상", "대상아님", "불명"] = Field(
+        description="본문 조건으로 볼 때 1인 창조기업·예비창업자가 신청하거나 활용할 수 있는가 (정의는 지시문)")
+    fit_quote: str = Field(description="fit 판정의 근거가 된 본문 구절을 한 글자도 바꾸지 않고 그대로. 불명이면 빈 문자열")
+    fit_reason: str = Field(description="그 구절로 왜 그렇게 판정했는지 한 문장. 본문에 없는 내용을 유추하지 않는다")
+    headline: str = Field(description="30자 이내 한국어 헤드라인")
+    summary: str = Field(description="무엇을 · 누구에게 · 언제까지를 담은 2~3문장. 모든 문장을 ~합니다체로")
+    insight: Insight
+    evidence: list[str] = Field(description="요약과 인사이트의 근거가 된 본문 문장을 고치지 않고 그대로 2~4개 인용")
+
+
+def sys_write():
+    return (f"독자: {AUDIENCE['reader']['persona']}\n\n"
+            "아래 본문을 읽고 먼저 이 독자가 대상인지 판정한 뒤, 헤드라인 · 요약 · 인사이트를 쓰세요.\n"
+            "fit 판정:\n"
+            "- 대상: 본문의 지원대상에 1인 창조기업이 들어갈 수 있는 대상(창업자 · 예비창업자 · 청년 창업자 · 소상공인 · "
+            "중소기업 · 영리기업 · 사업자 등)이 적혀 있고, 1인이 충족할 수 없는 필수 조건이 없다\n"
+            "- 대상아님: 1인이 충족할 수 없는 필수 조건이 있다 (N인 이상 고용 · 중견기업 이상 · 직원 대상 제도 운영 등)\n"
+            "- 불명: 본문에 지원대상 설명이 아예 없다\n"
+            "지역 · 나이 · 업종 조건은 대상아님의 이유가 아닙니다. 그 조건은 check 에 쓰세요\n\n"
+            "- 요약은 본문을 줄인 것이고, 인사이트는 이 독자가 무엇을 해야 하는지입니다. 둘을 섞지 마세요\n"
+            "- 인사이트의 check 에는 본문에 적힌 조건을 그대로 구체적으로 쓰세요. '조건을 확인하세요' 같은 빈말은 안 됩니다\n"
+            "- 본문에 없는 금액 · 날짜 · 대상 · 조건을 만들지 마세요\n"
+            "- 모든 문장은 ~합니다 / ~하세요 로 끝내세요. '~했다 · ~이다' 체는 쓰지 마세요\n"
+            "- '주목된다 · 기대를 모은다' 같은 기자체 표현은 쓰지 마세요\n"
+            "- evidence 에는 본문 문장을 한 글자도 바꾸지 말고 옮기세요")
+
+
+PLAIN_END = re.compile(r"(?<!니)다\.?$|(?:함|음|됨|임)\.?$")  # ~했다. ~이다. ~함. (단 ~합니다. 는 제외)
+EMPTY_CHECK = re.compile(r"조건을\s*(꼼꼼히\s*)?확인|명확히 제시|부합하는지\s*(점검|확인)")
+FIT_TALK = re.compile(r"대상에\s*해당|대상이\s*아니|지원\s*대상|대상으로\s*(판정|명시)|신청할\s*수\s*있")
+GUESS = re.compile(r"유추|추정|것으로\s*보|판단됨|가능성이\s*있")
+HEADCOUNT = re.compile(r"(\d+)\s*인\s*이상")
+
+
+def sentences(text):
+    return [x.strip() for x in re.split(r"(?<=[.!?])\s+", text.strip()) if x.strip()]
+
+
+def squash(s):
+    return re.sub(r"\s+", "", s or "")
+
+
+def in_body(quote, body):
+    """인용이 본문에 실제로 있는가 — 공백·줄바꿈 차이만 허용한다"""
+    q = squash(quote)
+    return len(q) >= 4 and q in squash(body)
+
+
+def draft_ok(d: Draft, body=""):
+    if not re.search(r"[가-힣]", d.summary + d.insight.action):
+        return "요약과 인사이트를 한국어로 쓰세요"
+    if len(d.headline) > 40:
+        return f"헤드라인이 {len(d.headline)}자입니다. 30자 이내로 줄이세요"
+    if not 2 <= len(d.evidence) <= 4:
+        return f"evidence 를 2~4개 인용하세요 (지금 {len(d.evidence)}개)"
+    plain = [x for f in (d.summary, d.insight.action, d.insight.gain) for x in sentences(f) if PLAIN_END.search(x)]
+    if plain:
+        s = plain[0][:50]
+        return (f"~합니다체가 아닌 문장이 있습니다: '{s}'. 문장 끝을 바꾸세요 "
+                "(예: '추진한다.' → '추진합니다.', '지원이다.' → '지원입니다.')")
+    if d.insight.check != NO_COND and EMPTY_CHECK.search(d.insight.check):
+        return f"check 가 빈말입니다: '{d.insight.check[:40]}'. 본문의 구체 조건을 쓰세요"
+    if FIT_TALK.search(d.insight.gain):
+        return f"gain 에 대상 여부 이야기가 들어갔습니다: '{d.insight.gain[:40]}'. 얻는 것(돈·시간·판로·역량)만 쓰세요"
+    # 판정 근거는 본문 인용이어야 한다 — 2026-09-15 '유추할 수 있어' 로 대상아님을 판정한 사례
+    if d.fit != "불명" and not in_body(d.fit_quote, body):
+        return f"fit_quote '{d.fit_quote[:30]}' 가 본문에 없습니다. 본문 구절을 그대로 옮기세요"
+    if GUESS.search(d.fit_reason):
+        return f"fit_reason 이 추측입니다: '{d.fit_reason[:40]}'. 본문에 적힌 조건만으로 판정하세요"
+    m = [int(n) for n in HEADCOUNT.findall(body)]
+    if d.fit == "대상" and any(n >= 2 for n in m):
+        return f"본문에 '{max(m)}인 이상' 조건이 있는데 1인 창조기업을 대상으로 판정했습니다. fit 을 다시 판정하세요"
+    return None
+
+
+class WriteIn(TypedDict):          # 워커가 받는 것은 기사 하나뿐
+    item: dict
+
+
+def fan_write(s: Brief):
+    """본선 선택 건수만큼 워커를 펼친다. 고른 게 없으면 바로 끝낸다"""
+    return [Send("write", {"item": p}) for p in s["picked"]] or [END]
+
+
+def write(s: WriteIn) -> dict:
+    it = s["item"]
+    body, body_src = extract_body(it)
+    base = {"id": it["id"], "rank": it["rank"], "label": it["label"], "source": it["source"],
+            "title": it["title"], "url": it["url"], "meta": it["meta"], "why_pick": it["why_pick"],
+            "body_source": body_src, "body_len": len(body)}
+    if not body:
+        return {"drafted": [{**base, "status": "skip", "skip_reason": "본문도 피드 요약도 없음"}],
+                "log": [f"   요약 스킵 {it['id']} · 본문 없음 · {it['title'][:30]}"]}
+    try:
+        d, usage = ask(Draft, sys_write(), f"[제목] {it['title']}\n[출처] {it['source']}\n\n[본문]\n{body}",
+                       check=lambda out: draft_ok(out, body))
+    except LLMError as ex:
+        return {"drafted": [{**base, "status": "skip", "skip_reason": f"요약 LLM 실패: {ex}"}],
+                "log": [f"   요약 스킵 {it['id']} · LLM 실패 · {it['title'][:30]}"]}
+    if d.fit == "대상아님":                         # 본문을 읽어 보니 독자가 신청할 수 없다 — 보내지 않는다
+        return {"drafted": [{**base, "status": "skip", "skip_reason": f"본문 확인 결과 대상 아님: {d.fit_reason}",
+                             **d.model_dump(), "usage": usage}],
+                "log": [f"   요약 스킵 {it['id']} · 대상 아님 · {d.fit_reason[:40]}"]}
+    return {"drafted": [{**base, "status": "ok", "body": body, **d.model_dump(), "usage": usage}],
+            "log": [f"   요약 {it['id']} · {body_src} {len(body)}자 · {d.fit} · {d.headline}"]}
+
+
 # ---------------------------------------------------------------- 그래프
 def build():
     g = StateGraph(Brief)
     g.add_node("collect", collect)
     g.add_node("prelim", prelim)
     g.add_node("final", final)
+    g.add_node("write", write)
     g.add_edge(START, "collect")
     g.add_edge("collect", "prelim")
     g.add_edge("prelim", "final")
-    g.add_edge("final", END)
+    g.add_conditional_edges("final", fan_write, ["write", END])
+    g.add_edge("write", END)
     return g.compile()
 
 
 def run(hours: int = HOURS) -> dict:
-    return build().invoke({"hours": hours, "collected": [], "survivors": [], "picked": [],
+    return build().invoke({"hours": hours, "collected": [], "survivors": [], "picked": [], "drafted": [],
                            "screened": [], "stats": {}, "log": []})
