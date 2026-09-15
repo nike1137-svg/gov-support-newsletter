@@ -22,6 +22,14 @@ RUNS = ROOT / "store" / "runs"
 KST = timezone(timedelta(hours=9))
 
 
+def missing_env(sending):
+    """비어 있는 필수 환경변수 이름. 텔레그램 키는 실제로 보낼 때만 필요하다.
+    키가 비어도 파이프라인은 대체 경로로 끝까지 돌아 "정상 실행됐습니다"를 보냈다 (클론 점검에서 발견) —
+    설정이 빠진 것을 '오늘은 0건'으로 숨기지 않도록 시작 전에 멈춘다. Actions 에서는 실패로 표시돼 알림이 온다."""
+    need = ["OPENAI_API_KEY", "BIZINFO_API_KEY"] + (["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"] if sending else [])
+    return [k for k in need if not os.environ.get(k, "").strip()]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=int, default=None, help="수집 시간 창 (기본 24)")
@@ -35,6 +43,12 @@ def main():
         os.environ["DRY_RUN"] = "1"
     if args.send:
         os.environ["DRY_RUN"] = "0"
+
+    missing = missing_env(sending=os.environ.get("DRY_RUN", "1") == "0")
+    if missing:
+        print(f"필수 환경변수가 비어 있습니다: {', '.join(missing)}")
+        print(".env (로컬) 또는 저장소 Secrets (GitHub Actions) 에 채운 뒤 다시 실행하세요. 이름은 .env.example 참고.")
+        sys.exit(1)
 
     started = datetime.now(KST)
     out = run(args.hours or HOURS)

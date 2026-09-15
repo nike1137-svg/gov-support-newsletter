@@ -62,8 +62,12 @@ def strip_tags(s):
 
 def fetch_bizinfo():
     """기업마당 지원사업 API. 선별 라벨로 쓸 지원대상·신청기간·분야를 함께 받는다"""
+    key = os.environ.get("BIZINFO_API_KEY", "").strip()
+    if not key:
+        # 키 없이 부르면 API 가 오류 대신 빈 목록을 준다 — '오늘 0건'과 구분되지 않아 실패로 올린다 (클론 점검에서 발견)
+        raise RuntimeError("BIZINFO_API_KEY 가 비어 있음")
     r = requests.get("https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do",
-                     params={"crtfcKey": os.environ["BIZINFO_API_KEY"], "dataType": "rss", "searchCnt": 200},
+                     params={"crtfcKey": key, "dataType": "rss", "searchCnt": 200},
                      headers=UA, timeout=TIMEOUT)
     r.raise_for_status()
     out = []

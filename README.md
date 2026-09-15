@@ -83,10 +83,11 @@ gov-support-newsletter/
 └── tools/
     ├── probe_sources.py         소스 후보 측정 (기준 C1~C5)
     ├── prove_verify.py          검수가 틀린 요약을 걸러내는지 증명 (실제 LLM · 약 $0.02)
-    ├── verify_collect.py        수집 검증        ┐
-    ├── verify_select.py         선별 검증        │ LLM 없음 · 비용 0
-    ├── verify_write.py          요약·인사이트 검증 │
-    └── verify_verify.py         검수 코드 대조 검증 ┘
+    ├── verify_env.py            필수 키가 비면 시작 전에 멈추는지 ┐
+    ├── verify_collect.py        수집 검증 (기업마당 키·인터넷 필요) │
+    ├── verify_select.py         선별 검증                        │ LLM 없음 · 비용 0
+    ├── verify_write.py          요약·인사이트 검증                 │
+    └── verify_verify.py         검수 코드 대조 검증                ┘
 ```
 
 ## 실행 방법
@@ -101,8 +102,11 @@ Copy-Item .env.example .env       # 메모장으로 열어 키를 채운다
 .venv\Scripts\python.exe run.py --dry-run   # 보내지 않고 메시지만 출력
 .venv\Scripts\python.exe run.py --send      # 텔레그램으로 발행
 
-.venv\Scripts\python.exe tools\verify_select.py   # 오프라인 검증 (verify_collect · write · verify 도 같은 방식)
+.venv\Scripts\python.exe tools\verify_select.py   # 오프라인 검증 (verify_env · collect · write · verify 도 같은 방식)
 ```
+
+**필수 키가 하나라도 비어 있으면 `run.py` 는 시작 전에 멈추고 어떤 키가 없는지 알려준다** (종료 코드 1).
+텔레그램 키는 `--send` 일 때만 요구한다. `tools/verify_collect.py` 는 LLM 은 부르지 않지만 기업마당 키와 인터넷이 필요하다.
 
 ### 환경변수
 
@@ -126,7 +130,8 @@ GitHub Actions 에서는 필수 4개를 저장소 **Secrets** 에 같은 이름�
 | 3. 요약·인사이트 — 대상 판정 · 할 일/확인/얻는 것 | ✅ | `tools/verify_write.py` 4/4 |
 | 4. 검수·예외 처리 — 재생성 · 스킵 · 검수 불가 미발행 | ✅ | `tools/prove_verify.py` 8/8 · `tools/verify_verify.py` 4/4 |
 | 5. 발행 — 텔레그램 · 매일 07:30 KST 자동 실행 | ✅ | Actions 엔드투엔드 성공 · 수신 확인 |
-| 보고서 · 제출 준비 | ✅ | `REPORT.md` |
+| 보고서 · 제출 | ✅ | `REPORT.md` · 2026-09-15 제출 |
+| 제출 후 새 클론 점검 — 키 누락 시 가짜 "정상" 수정 | ✅ | `tools/verify_env.py` 4/4 · [dev-log](docs/dev-log.md#제출-후--새-클론-점검) |
 
 알려진 한계와 보완 방향은 [REPORT.md 6장](REPORT.md#6-프로젝트-회고).
 

@@ -1,4 +1,5 @@
 """수집 노드가 약속한 동작을 하는지 확인한다. 기록 파일은 건드리지 않는다.
+LLM 은 부르지 않지만 실제 소스를 읽으므로 BIZINFO_API_KEY 와 인터넷 연결이 필요하다.
 
     .venv\\Scripts\\python.exe tools\\verify_collect.py
 
@@ -25,12 +26,20 @@ def check(name, ok, detail):
     print(f"[{'통과' if ok else '실패'}] {name} — {detail}")
 
 
-# 1
-biz = graph.fetch_bizinfo()
-labeled = sum(bool(x["meta"]["지원대상"] and x["meta"]["신청기간"]) for x in biz)
-unique = len({graph.url_key(x["url"]) for x in biz})
-check("라벨·주소", labeled == len(biz) and unique == len(biz),
-      f"라벨 {labeled}/{len(biz)} · 고유 주소 {unique}/{len(biz)}")
+# 1 — 받은 게 0건이면 통과가 아니다. 키 없이 돌렸을 때 '라벨 0/0' 으로 통과한 적이 있다 (클론 점검에서 발견)
+try:
+    biz = graph.fetch_bizinfo()
+except RuntimeError as ex:
+    biz, why = [], str(ex)
+else:
+    why = "API 가 0건을 돌려줌"
+if not biz:
+    check("라벨·주소", False, f"검사하지 못함 — {why}. BIZINFO_API_KEY 와 인터넷 연결이 필요하다")
+else:
+    labeled = sum(bool(x["meta"]["지원대상"] and x["meta"]["신청기간"]) for x in biz)
+    unique = len({graph.url_key(x["url"]) for x in biz})
+    check("라벨·주소", labeled == len(biz) and unique == len(biz),
+          f"라벨 {labeled}/{len(biz)} · 고유 주소 {unique}/{len(biz)}")
 
 
 # 2
