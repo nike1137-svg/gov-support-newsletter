@@ -1,0 +1,715 @@
+{
+  "criteria_version": "v2",
+  "measured_at": "2026-09-15T12:27:50+09:00",
+  "window_hours": 72,
+  "criteria": "docs/source-criteria.md",
+  "excluded_hosts_checked": [
+    "openai.com",
+    "deepmind.google",
+    "techcrunch.com",
+    "theverge.com",
+    "technologyreview.com",
+    "aitimes.com"
+  ],
+  "pipeline": {
+    "adopted_count": 4,
+    "per_day_sum": 15.0,
+    "min_per_day": 5,
+    "min_sources": 3,
+    "note": "중복 제거 전 합계. 창을 못 덮은 소스는 하한값이다",
+    "pass": true
+  },
+  "sources": [
+    {
+      "source": "기업마당",
+      "kind": "API",
+      "url": null,
+      "terms": {
+        "key": "필요 (crtfcKey)",
+        "cost": "요금 문구 없음 · 결제 절차 없음",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 200,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 34,
+        "per_day": 11.3,
+        "per_day_is_lower_bound": false,
+        "covers_window": true,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-14T15:38:58+09:00",
+        "future_start": 0
+      },
+      "c4": {
+        "pass": true,
+        "ratio": "10/10",
+        "hits": [
+          "2026년 공예 온라인 유통 및 AI 활용 역량 강화 교육프로그램  교육생 모집 공고",
+          "[인천] 2026년 3차 뿌리청년 사내맛남 뿌리미(味)래 푸드트럭 참여기업 추가모집 공고",
+          "[제주] 서귀포시 2026년 4분기 서귀포in정 입점업체 공개모집 공고",
+          "2026년 인도 BTS(Bengaluru Tech Summit) 전시회 모집 공고",
+          "[인천] 2026년 새일여성인턴 참여 기업 모집 공고",
+          "2026년 바이오글로벌 사업화지원센터 기업지원사업 공고",
+          "[충남] 2026년 4차 지역주도형 AI 대전환 사업 종합 기업지원 모집 공고",
+          "2026년 공급기업 다변화 지원사업 참여기업 모집(원전 생태계 고도화 지원사업)",
+          "2026년 AI 기반 주파수 간섭분석 및 전파예측기술 개발사업 신규지원 대상과제 연장 공고",
+          "[부산] 서구 2026년 청년 창업자 임차료 지원사업 참여 신청 재공고"
+        ],
+        "miss": []
+      },
+      "adopted": true,
+      "failed_on": []
+    },
+    {
+      "source": "K-Startup",
+      "kind": "API",
+      "url": null,
+      "terms": {
+        "key": "필요 (serviceKey)",
+        "cost": "무료 (공공데이터포털 표기)",
+        "limit": "개발계정 10,000회/일"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 231,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": true
+      },
+      "c3": {
+        "pass": false,
+        "in_72h": 0,
+        "per_day": 0.0,
+        "per_day_is_lower_bound": false,
+        "covers_window": true,
+        "sorted_desc": false,
+        "total_reported": 231,
+        "newest": "2026-09-10T00:00:00+09:00",
+        "future_start": 0
+      },
+      "c4": {
+        "pass": true,
+        "ratio": "10/10",
+        "hits": [
+          "2026 글로벌 스타트업 서밋 (일본2차) 세미나&밋업 참여기업 모집",
+          "2026년 서경대학교 창업보육센터 입주기업 모집(3차)",
+          "2026년 국가철도공단 창업·벤처기업 지원사업 희망기업 모집공고",
+          "베트남 테크페스트(TECHFEST 2026) K-스타트업 통합관 참가기업 모집공고",
+          "2026년 서울창업허브 창동 투자 특화 프로그램 - IR 라운드(3회차)",
+          "경기도경제과학진흥원과 함께하는 모두의 창업(2차) 사업 설명회",
+          "「청년창업기업·사회적경제기업·예비창업자(소상공인) 대상」 2025년 제1기 서울콜라보레이션 청년 성공창업스쿨 교육생 모집",
+          "수원대학교 예비창업패키지 2026 Pre-WoW! 창업아카데미",
+          "한국기술교육대학교 오픈이노베이션 프로그램 참여기업 모집 공고",
+          "모두의 창업 로컬기업 육성사업 교육(동남권)"
+        ],
+        "miss": []
+      },
+      "adopted": false,
+      "failed_on": [
+        "C3"
+      ]
+    },
+    {
+      "source": "중기부 사업공고",
+      "kind": "RSS",
+      "url": "https://www.mss.go.kr/rss/smba/board/310.do",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 20,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 2,
+        "per_day": 0.7,
+        "per_day_is_lower_bound": false,
+        "covers_window": true,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-15T09:00:00+09:00",
+        "future_start": 0
+      },
+      "c4": {
+        "pass": true,
+        "ratio": "10/10",
+        "hits": [
+          "「민관협력 오픈이노베이션 지원」 ‘공공데이터 활용 지원’ 공공기관 제안형(Top-Down) 창업기업 모집공고",
+          "「2026년 상생결제 확산 유공」 포상 후보자 모집 공고",
+          "2026년 중소기업 스마트서비스 지원사업 참여기업 모집 공고(A/S지원)",
+          "「2026년 스마트제조혁신 유공」 포상 후보자 모집 공고",
+          "『중소기업 AX 우수사례 공모전』참가기업 모집 공고",
+          "「지역 중소기업 AI 활용·확산 유공 포상」 후보자 모집 공고",
+          "중소제조 특화 Multi AI Agent 개발(R&amp;D) 점프업 Track 시행계획 공고",
+          "2026년도 스마트공장 공급기업 역량진단 참여기업 2차 모집 공고",
+          "2026년 중소기업 CBAM대응 인프라구축 사업 참여기업 3차 모집공고",
+          "2026년 납품대금 연동 우수기업 포상 모집 공고"
+        ],
+        "miss": []
+      },
+      "adopted": true,
+      "failed_on": []
+    },
+    {
+      "source": "중기부 보도자료",
+      "kind": "RSS",
+      "url": "https://www.mss.go.kr/rss/smba/board/86.do",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 20,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 5,
+        "per_day": 1.7,
+        "per_day_is_lower_bound": false,
+        "covers_window": true,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-14T09:00:00+09:00",
+        "future_start": 0
+      },
+      "c4": {
+        "pass": true,
+        "ratio": "7/10",
+        "hits": [
+          "공공서비스 혁신 과제 해결할 스타트업 찾는다! - 「공공데이터 활용 오픈이노베이션」 스타트업 모집 -",
+          "청년의 창업 도전, 대학에서 시작된다2차 「모두의 창업」 고려대 캠퍼스 투어 개최",
+          "“혁신 아이디어와 투자자의 만남” 혁신 창업가의 생애 첫 투자유치를 위한 ｢도전의 IR 프로젝트｣ 추진",
+          "소상공인을 넘어 지역대표 브랜드로! 혁신 소상공인 TOP 11 선정",
+          "AI 분야·혁신 분야, 유망 초기 창업기업 32개사 선발",
+          "대학의 아이디어가 창업으로2차 「모두의 창업」 단국대 현장소통",
+          "중소기업 글로벌 진출 확산을 견인할 ‘K-수출전략품목’ 혁신 기업 선정"
+        ],
+        "miss": [
+          "중기부, ‘상생협력 촉진제도’  유공자 32점 포상...우수사례 발굴‧확산",
+          "중기부, 온라인플랫폼  별점제 관련 상생 간담회 개최",
+          "「모두의 챌린지 기후테크」 최고혁신상에 ㈜기가에떼, The Origin"
+        ]
+      },
+      "adopted": true,
+      "failed_on": []
+    },
+    {
+      "source": "중소기업뉴스",
+      "kind": "RSS",
+      "url": "https://www.kbiznews.co.kr/rss/allArticle.xml",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 50,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 30,
+        "per_day": 10.0,
+        "per_day_is_lower_bound": false,
+        "covers_window": true,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-14T19:51:47+09:00",
+        "future_start": 2
+      },
+      "c4": {
+        "pass": false,
+        "ratio": "2/10",
+        "hits": [
+          "[뉴스브리핑] 한은, ‘中企신용연계지원’ 프로그램 짠다",
+          "음성 꽃동네에서 선율로 피어난 중소기업 나눔의 꽃"
+        ],
+        "miss": [
+          "[이소연 시인의 마음 채집] 축하하는 마음",
+          "장 프랑수아 밀레의 이삭 줍기...추석, 풍요로운 들판에서 가장 가난했던 세 여인",
+          "[인사이트] AI 시대에 엔지니어를 앉힌 애플…5조달러 제국, ‘제품’으로 돌아가다",
+          "미셸 스틸 美대사 만난 김기문 회장 “中企 미국시장 진출 가교 돼달라”",
+          "中企 건의로 코스닥 퇴출기준 유예 …대응시간 확보",
+          "한유원·공영홈쇼핑 통합해 中企 마케팅 전문기관 세운다",
+          "고용부-인력공단 주최 ‘숙련기술인의 날’ 행사 개최",
+          "‘사랑’이 작사하고 ‘나눔’이 작곡... 희망을 속삭인 ‘러블리 콘서트’"
+        ]
+      },
+      "adopted": false,
+      "failed_on": [
+        "C4"
+      ]
+    },
+    {
+      "source": "중기이코노미",
+      "kind": "RSS",
+      "url": "https://www.junggi.co.kr/rss/allArticle.xml",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 50,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 16,
+        "per_day": 5.3,
+        "per_day_is_lower_bound": false,
+        "covers_window": true,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-15T09:00:00+09:00",
+        "future_start": 8
+      },
+      "c4": {
+        "pass": false,
+        "ratio": "1/10",
+        "hits": [
+          "\"가격은 올리고, 세금은 줄이고\"…국세청 세무조사"
+        ],
+        "miss": [
+          "메이아이 \"2028년 매출 200억 달성, IPO 진행 목표\"",
+          "반도체 수출 호조에 8월 348억 달러 무역흑자",
+          "이소영 중기부 장관 후보자 청문회 여야 쟁점은?",
+          "유가 100달러 넘고, 고물가 우려에 원달러 환율 상승",
+          "원달러 환율 하락하며 8월 수출입물가 동반 하락",
+          "뉴욕증시, 빅테크 수장들의 AI 감속론 충격에 반도체 ↓",
+          "[전문가 칼럼] 가지급금 6.2억원 방치…승계까지 발목 잡힐 뻔",
+          "\"방산·조선의 현금창출력이 한화그룹 재무안정성 뒷받침\"",
+          "이재용, 홍라희 삼성전자 지분 1.9조원에  매수"
+        ]
+      },
+      "adopted": false,
+      "failed_on": [
+        "C4"
+      ]
+    },
+    {
+      "source": "벤처스퀘어",
+      "kind": "RSS",
+      "url": "https://www.venturesquare.net/feed",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 30,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 30,
+        "per_day": 10.0,
+        "per_day_is_lower_bound": true,
+        "covers_window": false,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-15T10:52:42+09:00",
+        "future_start": 0
+      },
+      "c4": {
+        "pass": false,
+        "ratio": "1/10",
+        "hits": [
+          "X선 촬영량과 영상 품질의 딜레마…코로로직, 심혈관 AI로 시드 투자"
+        ],
+        "miss": [
+          "질문하면 답하고 작품 앞으로 이동…딥브레인AI, XR 전시용 AI 휴먼 구현",
+          "입주 의향 64%, 공급률 0.11%…시니어 주거 시장의 빈칸은 ‘중간 가격대’",
+          "손으로 돌리던 내시경을 모터로…메디인테크, 임상 넘어 AI 자율조향",
+          "잘피 7만 주 심은 뒤 바다는 어떻게 달라졌나…땡스카본·LG화학 4년의 기록",
+          "대출 한파 속 중저신용자 창구로…핀다 생활안정대출 160억원 돌파",
+          "정답을 잘 맞히는 학생보다 세상에 가치를 만드는 학생… ‘웨이메이커스쿨(WMS)’ 송영광 대표가 도전하는 AI 시대의 교육",
+          "지방행정 AI, 시민 수용성까지 설계한다…융기원·지방행정연구원 협력",
+          "GPU부터 의료 AI 운영까지…아크릴, 우즈벡 국가 AX 협력 논의",
+          "예지보전에서 팩토리 OS로…원프레딕트, 기술성평가 통과"
+        ]
+      },
+      "adopted": false,
+      "failed_on": [
+        "C4"
+      ]
+    },
+    {
+      "source": "스타트업엔",
+      "kind": "RSS",
+      "url": "https://www.startupn.kr/rss/allArticle.xml",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 50,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 29,
+        "per_day": 9.7,
+        "per_day_is_lower_bound": true,
+        "covers_window": false,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-14T21:39:05+09:00",
+        "future_start": 21
+      },
+      "c4": {
+        "pass": false,
+        "ratio": "2/10",
+        "hits": [
+          "마이프차, 당근비즈니스와 협업…신규 창업 사장님에 최대 35만원 혜택",
+          "시리즈벤처스, AI 언어재활 솔루션 기업 골든브레인케어에 시드 투자"
+        ],
+        "miss": [
+          "시티아이랩, 현대건설 본사에 AI 기반 전기차 화재 예측·감지 솔루션 구축",
+          "데브디, 임대차 계약 검증 기반 결제 기술로 ‘혁신 프리미어 1000’ 선정",
+          "산둥성농업과학원 대표단 방한…백신 기술이전·연구인력 교류·현지 실증 등 협력 논의",
+          "커넥셔너리, ‘Infinite Canvas’ 공개…수백만 건 정보 수초 내 비교·분석",
+          "팀엘리시움, WSCE 2026서 AI 체형분석기 ‘바디닷’ 선봬…공공 헬스케어 확대",
+          "파이온, 맘스터치 일본 광고 제작…촬영 없이 한 달 만에 50만 회 재생",
+          "엑스와이지 로봇 바리스타, WSCE 2026서 1,005잔 제조…현장 운영 역량 입증",
+          "에스투더블유, 창립 8주년 맞아 BI 전면 개편…‘글로벌 데이터 인텔리전스 기업’ 강화"
+        ]
+      },
+      "adopted": false,
+      "failed_on": [
+        "C4"
+      ]
+    },
+    {
+      "source": "스타트업투데이",
+      "kind": "RSS",
+      "url": "https://www.startuptoday.kr/rss/allArticle.xml",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 50,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 4,
+        "per_day": 1.3,
+        "per_day_is_lower_bound": false,
+        "covers_window": true,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-15T01:57:12+09:00",
+        "future_start": 0
+      },
+      "c4": {
+        "pass": true,
+        "ratio": "6/10",
+        "hits": [
+          "벤처기업협회, 우즈베키스탄과 창업 파트너십 구축∙∙∙중앙아시아 스케일업 파이프라인 가동",
+          "에버트레져, BNK투자증권과 맞손∙∙∙차세대 문화금융 STO 파이프라인 가동",
+          "서울바이오허브, 2026 스타트업 스프린트 데모데이 성료∙∙∙로슈진단 협력 무대 완성",
+          "크레도스파트너스, 프리 시리즈 A 투자 유치 가속∙∙∙15억 원 실탄 확보",
+          "어피닛, 인도 진출 액셀러레이팅 본격화∙∙∙프리 유니콘 인디아 1기 모집",
+          "SBA, 게임스튜디오 둥지 틀 유망 스타트업 발굴∙∙∙인프라부터 네트워킹까지 연계"
+        ],
+        "miss": [
+          "연결-뉴럴하이웨이, 협력 체계 가동∙∙∙AI 기반 미디어 파이프라인 글로벌 확장",
+          "원프레딕트, 기술특례상장 기틀 마련∙∙∙제조 인공지능 플랫폼으로 코스닥 입성 가속",
+          "블루포인트파트너스, 씨스프린트 1기 가동∙∙∙피지컬 인공지능 사업가형 인재 영입",
+          "루닛, 10x 지노믹스와 파트너십 체결∙∙∙공간유전체학 결합 파이프라인 가동"
+        ]
+      },
+      "adopted": true,
+      "failed_on": []
+    },
+    {
+      "source": "비석세스",
+      "kind": "RSS",
+      "url": "https://besuccess.com/feed",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": false,
+        "status": 200,
+        "count": 20,
+        "title_readable": false
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 15,
+        "per_day": 5.0,
+        "per_day_is_lower_bound": false,
+        "covers_window": true,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-14T17:34:45+09:00",
+        "future_start": 0
+      },
+      "c4": {
+        "pass": false,
+        "ratio": "0/10",
+        "hits": [],
+        "miss": [
+          "ě”¨ě—”í‹°í…ŒíŹ, AI ě˜ěƒ í”„ëŚŹí”„ëĄœë•ě…˜ í”ŒëžŤíź â€˜ë‹´ę°€ëźâ€™ě— íˆŹěžâ€Śę¸°ěˆ ë Ľ ěž…ěŚ",
+          "ě”¨ě—”í‹°í…ŒíŹ, 3DGS ę¸°ë°˜ í”ŒëžŤíź â€˜ě˜¨ě „â€™ ěš´ě˜ě‚Ź ëŠ”íƒ€ëĄœě§€ě— íˆŹěž",
+          "ě˜¤ë˛„ë”í•¸ë“œ, ë””ë˛¨ëĄœěź“ě—ë“€ě™€ MOUâ€Śë§ˆěŠ¤ě˝”ěŚˆ ę¸°ë°˜ ë˛„íŠœë˛„ ęľěœĄÂˇęłľëŞ¨ě „ ěś”ě§„",
+          "KAIAÂˇíë„¤ěŠ¤í‹°, ëś€ě‚°ě„œ ë™ë‚¨ęśŒ í´ëŸ˝í•˜ěš°ěŠ¤ ę°œěľœâ€Śě§€ě—­ ěŠ¤íƒ€íŠ¸ě—… íˆŹěž ěƒíƒœęł„ í™œě„ąí™”",
+          "GDIN, íŒęľě— ěš°ěŚˆë˛Ą IT Park í•œęľ­ě‚ŹëŹ´ě†Œ ę°œě†Œâ€ŚAIÂˇDX ęľě°¨ ě§„ěśœ ę°€ě†",
+          "ě„œěš¸íˆŹěžě§„íĽěžŹë‹¨ÂˇKVCA, ę¸€ëĄœë˛Œ LPÂˇęľ­ë‚´ VC ë„¤íŠ¸ě›Œí‚š ę°œěľœâ€Śí•´ě™¸ ěžëł¸ ěœ ěž… ëŹźęźŹ",
+          "ë°ěźëŚŹíŽ˜ě´, â€˜2026 ë””ë…¸ëžŠ ě „ëś IR ë°ëŞ¨ë°ě´â€™ ëŒ€ěƒ ěˆ˜ěƒâ€Śěš°ëŚŹę¸ˆěœľ ěš°ě„  íˆŹěž ę˛€í†  í™•ëł´",
+          "ě„œěš¸ AI í—ˆë¸Œ, 18ěź â€˜AI IMPACTâ€™ ę°œěľœâ€ŚAIëĄœ ě‚ŹíšŒëŹ¸ě œ í’€ě–´ë‚´ëŠ” í•´ěť¤í†¤Âˇě •ěą…í† ëĄ  ě—°ęł„",
+          "ě—‘ěŠ¤ě™€ě´ě§€, ëŹ´ě‹ ě‚Ź ë§¤ěžĽě— ëĄœë´‡ ë°”ëŚŹěŠ¤íƒ€ â€˜ë°”ëŚŹěŠ¤ë¸ŒëŁ¨â€™ ě—°ë‚´ 3ëŒ€ ęłľę¸‰",
+          "ě¤‘ę¸°ëś€Âˇë˛¤ě˛˜ę¸°ě—…í˜‘íšŒ, 15ěź â€˜ěœ ë‹ˆě˝˜ë¸ŒëŚżě§€ 1ěĄ°í´ëŸ˝ íŹëŸźâ€™ ę°œěľœâ€Śě„ í›„ë°° ë˛¤ě˛˜ ë…¸í•˜ěš° ęłľěœ"
+        ]
+      },
+      "adopted": false,
+      "failed_on": [
+        "C1",
+        "C4"
+      ]
+    },
+    {
+      "source": "아웃스탠딩",
+      "kind": "RSS",
+      "url": "https://outstanding.kr/feed",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 10,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 8,
+        "per_day": 2.7,
+        "per_day_is_lower_bound": false,
+        "covers_window": true,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-15T10:50:01+09:00",
+        "future_start": 0
+      },
+      "c4": {
+        "pass": false,
+        "ratio": "3/10",
+        "hits": [
+          "스타트업DB가 대대적으로 확대 개편됩니다 (with 피치덱)",
+          "‘스타트업 880곳 실적 모아보기’ 전자책이 나왔습니다",
+          "4년을 버틴 조각투자 스타트업, 왜 서로 다른 칼을 갈았나"
+        ],
+        "miss": [
+          "아이폰 듀오, 애플이 풀어낸 숙제와 풀지 못한 숙제",
+          "AI 모델이 AI 흉기가 될 수 있다!.. 실리콘밸리가 주목하는 인류멸망론",
+          "어느 정도로 금리가 오르면 시장 충격이 현실화될까?",
+          "“AI 때문에 일을 못하겠어요”",
+          "‘아웃스탠딩, 2번의 매각 경험과 소회’를 주제로 전자책을 낼 예정입니다",
+          "아웃스탠딩 광고상품을 소개합니다",
+          "성형 상담 사진까지 해킹당한 강남언니.. IPO에도 장애물 될까?"
+        ]
+      },
+      "adopted": false,
+      "failed_on": [
+        "C4"
+      ]
+    },
+    {
+      "source": "한국경제",
+      "kind": "RSS",
+      "url": "https://www.hankyung.com/feed/economy",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 50,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 50,
+        "per_day": 16.7,
+        "per_day_is_lower_bound": true,
+        "covers_window": false,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-15T11:19:44+09:00",
+        "future_start": 0
+      },
+      "c4": {
+        "pass": false,
+        "ratio": "1/10",
+        "hits": [
+          "삼성, 네덜란드 AI 칩 스타트업 투자…엔비디아 대항마 찾나"
+        ],
+        "miss": [
+          "홈플러스 임금체불 3871억 '역대 최대'…664억 아직 미청산",
+          "中 시장 어렵다더니…사흘 만에 146건 상담 '깜짝 성과'",
+          "김밥 한 줄도 사치됐나…2500원짜리 '반줄'에 몰린 사람들",
+          "\"소주를 왜 섞어 마시나\"…2030 홈술족 늘어나더니 '불티' [권 기자의 장바구니]",
+          "\"커피 한 잔도 위안화로\"…일상까지 파고든 中 결제망 [차이나 워치]",
+          "떡튀순 뺨치는 '버치피' 조합 뜬다…맘스터치, 싱글피자 출시",
+          "노바티스·노보 연이어 실패…심장약 개발 난도 높아졌다",
+          "주한독일상공회의소, '2026 한-독 재생에너지 비즈니스 포럼' 개최",
+          "\"맛보며 만들었어요\" 리센느 빵 뭐길래…출시 전부터 '들썩' [갓신상]"
+        ]
+      },
+      "adopted": false,
+      "failed_on": [
+        "C4"
+      ]
+    },
+    {
+      "source": "전자신문",
+      "kind": "RSS",
+      "url": "https://rss.etnews.com/Section901.xml",
+      "terms": {
+        "key": "불필요",
+        "cost": "무료 (공개 RSS)",
+        "limit": "표기 없음"
+      },
+      "c1": {
+        "pass": true,
+        "status": 200,
+        "count": 30,
+        "title_readable": true
+      },
+      "c2": {
+        "pass": true,
+        "dated_ratio": 1.0,
+        "date_only": false
+      },
+      "c3": {
+        "pass": true,
+        "in_72h": 30,
+        "per_day": 10.0,
+        "per_day_is_lower_bound": true,
+        "covers_window": false,
+        "sorted_desc": true,
+        "total_reported": null,
+        "newest": "2026-09-15T11:10:19+09:00",
+        "future_start": 0
+      },
+      "c4": {
+        "pass": false,
+        "ratio": "3/10",
+        "hits": [
+          "이소영 “규제 풀고 코스닥 살려 '국가창업시대' 열겠다”",
+          "일본 10월부터 모든 단말기에서 컨택리스 지원…한국과 대조",
+          "오라클, 2만명 감원 이어 또다시 해고…AI 투자·활용 여파"
+        ],
+        "miss": [
+          "삼성 갤럭시Z8, 美 컨슈머리포트 폴더블 평가 1위",
+          "삼성·버라이즌, 6G '통신·센싱 융합' 실증…AI로 군중 밀집도 파악",
+          "사진 구도 바꾸고 웹페이지 가격 추적…애플, AI 기능 확대",
+          "대변 실금하며 1등한 선수 “우승은 우승” 자랑에 비판 쏟아져… 결국 게시물 삭제",
+          "“3골 내줘라, 아니면 가족 죽인다”…볼리비아 골키퍼에 살해 협박",
+          "테슬라 '9년 만의 로드스터' 10월 1일 공개 예고에 '희망고문' 논란 고조",
+          "코스피, AI 속도조절 우려 지속에도 6680선 보합권 출발"
+        ]
+      },
+      "adopted": false,
+      "failed_on": [
+        "C4"
+      ]
+    }
+  ]
+}
