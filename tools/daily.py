@@ -68,9 +68,13 @@ def push_records():
 
 def main():
     started = datetime.now(KST)
+    # 작업 스케줄러는 PYTHONUTF8 없이 부른다 → 자식이 한글을 cp949 로 내보내고, UTF-8 로 읽다 실패해
+    # 출력이 통째로 None 이 됐다 (2026-09-16 첫 시험 실행에서 로그가 비었다). 자식에 UTF-8 을 강제한다.
+    child_env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
     try:
         p = subprocess.run([str(PY), "run.py", "--send"], cwd=ROOT, capture_output=True,
-                           text=True, encoding="utf-8", timeout=TIMEOUT_SEC)
+                           text=True, encoding="utf-8", errors="replace",
+                           env=child_env, timeout=TIMEOUT_SEC)
         out, code = (p.stdout or "") + (p.stderr or ""), p.returncode
     except subprocess.TimeoutExpired:
         out, code = "", "timeout"

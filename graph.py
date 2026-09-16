@@ -855,6 +855,8 @@ def article_block(n, d):
         f"👉 <b>할 일</b> {esc(ins['action'])}",
         f"✅ <b>확인</b> {esc(ins['check'])}",
         f"💰 <b>얻는 것</b> {esc(ins['gain'])}",
+        # 제목도 링크지만, 읽고 내려온 자리에서 바로 누를 수 있게 아래에도 링크를 둔다
+        f"🔗 <a href=\"{html.escape(d['url'])}\">공고 원문 보기</a>" if d.get("url") else "🔗 원문 링크 없음",
         f"<code>{esc(d['source'])}" + (f" · 신청 {esc(period)}" if period else "") + "</code>",
     ])
 
